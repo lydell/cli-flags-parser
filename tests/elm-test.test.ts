@@ -342,11 +342,11 @@ function elmTest(argv: Array<string>): Command | string {
           return allRules.some(([, name]) => name === result.error.name)
             ? `Invalid flag in this context: ${result.error.dash}${result.error.name}`
             : `Unknown flag: ${result.error.dash}${result.error.name}`;
-        case "MissingValue":
+        case "MissingFlagValue":
           return `This flag requires a value: ${result.error.dash}${result.error.name}`;
         case "ValueFlagNotLastInGroup":
           return `This flag requires a value and must be last in the group: ${result.error.dash}${result.error.name}`;
-        case "ValueSuppliedToSwitch":
+        case "UnexpectedFlagValue":
           return `This flag takes no value but was given one: ${result.error.dash}${result.error.name}=${result.error.value}`;
       }
 

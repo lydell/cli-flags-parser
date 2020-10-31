@@ -6,13 +6,13 @@ export type FlagRule<State, CustomError> =
 
 export type FlagError =
   | {
-      tag: "ValueSuppliedToSwitch";
+      tag: "UnexpectedFlagValue";
       dash: Dash;
       name: string;
       value: string;
     }
   | {
-      tag: "MissingValue";
+      tag: "MissingFlagValue";
       dash: Dash;
       name: string;
     }
@@ -133,7 +133,7 @@ export default function parse<State, CustomError>(
                   return {
                     tag: "FlagError",
                     error: {
-                      tag: "ValueSuppliedToSwitch",
+                      tag: "UnexpectedFlagValue",
                       dash,
                       name,
                       value: flagValue.value,
@@ -179,7 +179,7 @@ export default function parse<State, CustomError>(
                   return {
                     tag: "FlagError",
                     error: {
-                      tag: "MissingValue",
+                      tag: "MissingFlagValue",
                       dash,
                       name,
                     },
