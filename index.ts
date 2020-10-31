@@ -38,7 +38,8 @@ type Callback<Arg, Error> = (
 ) =>
   | { tag: "NewFlagRules"; rules: Array<FlagRule<Error>> }
   | { tag: "Error"; error: Error }
-  | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- This IS a return type!
+  | void;
 
 type Options<Error> = {
   initialFlagRules: Array<FlagRule<Error>>;
