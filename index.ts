@@ -1,8 +1,8 @@
 export type Dash = "-" | "--";
 
 export type FlagRule<State, FlagError> =
-  | [Dash, string, Callback<void, State, FlagError>]
-  | [Dash, string, "=", Callback<string, State, FlagError>];
+  | [Dash, string, VoidCallback<State, FlagError>]
+  | [Dash, string, "=", ValueCallback<string, State, FlagError>];
 
 export type FlagErrorWrapper<FlagError> =
   | {
@@ -39,18 +39,24 @@ type FlagValue =
   | { tag: "ViaNextArg"; value: string }
   | { tag: "NextArgMissing" };
 
-type Callback<Arg, State, Error> = (
-  state: State,
-  arg: Arg
-) =>
+export type CallbackResult<State, Error> =
   | { tag: "Ok"; state: State; handleRemainingAsRest?: boolean }
   | { tag: "Error"; error: Error };
+
+export type VoidCallback<State, Error> = (
+  state: State
+) => CallbackResult<State, Error>;
+
+export type ValueCallback<Arg, State, Error> = (
+  arg: Arg,
+  state: State
+) => CallbackResult<State, Error>;
 
 export type Options<State, FlagError, ArgError> = {
   initialState: State;
   flagRulesFromState: (state: State) => Array<FlagRule<State, FlagError>>;
-  onArg: Callback<string, State, ArgError>;
-  onRest: Callback<Array<string>, State, ArgError>;
+  onArg: ValueCallback<string, State, ArgError>;
+  onRest: ValueCallback<Array<string>, State, ArgError>;
 };
 
 export type ParseResult<State, FlagError, ArgError> =
@@ -75,7 +81,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
       FlagError,
       ArgError
     > => {
-      const result = options.onRest(state, argv.slice(index + 1));
+      const result = options.onRest(argv.slice(index + 1), state);
       switch (result.tag) {
         case "Ok":
           return { tag: "Ok", state: result.state };
@@ -87,7 +93,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
     const handleFlagCallbackResult = (
       dash: Dash,
       name: string,
-      result: ReturnType<Callback<unknown, State, FlagError>>
+      result: CallbackResult<State, FlagError>
     ): ParseResult<State, FlagError, ArgError> | undefined => {
       switch (result.tag) {
         case "Ok":
@@ -110,7 +116,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
     };
 
     const handleCallbackResult = (
-      result: ReturnType<Callback<unknown, State, ArgError>>
+      result: CallbackResult<State, ArgError>
     ): ParseResult<State, FlagError, ArgError> | undefined => {
       switch (result.tag) {
         case "Ok":
@@ -181,7 +187,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
                   const result = handleFlagCallbackResult(
                     dash,
                     name,
-                    callback(state, undefined)
+                    callback(state)
                   );
                   if (result !== undefined) {
                     return result;
@@ -198,7 +204,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
                   const result = handleFlagCallbackResult(
                     dash,
                     name,
-                    callback(state, flagValue.value)
+                    callback(flagValue.value, state)
                   );
                   if (result !== undefined) {
                     return result;
@@ -242,7 +248,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
         }
       }
     } else {
-      const result = handleCallbackResult(options.onArg(state, arg));
+      const result = handleCallbackResult(options.onArg(arg, state));
       if (result !== undefined) {
         return result;
       }

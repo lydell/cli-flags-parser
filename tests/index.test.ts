@@ -12,11 +12,11 @@ test("empty", () => {
       rest: [],
     },
     flagRulesFromState: () => [],
-    onArg: (state, arg) => ({
+    onArg: (arg, state) => ({
       tag: "Ok",
       state: { ...state, args: state.args.concat(arg) },
     }),
-    onRest: (state, rest) => ({
+    onRest: (rest, state) => ({
       tag: "Ok",
       state: { ...state, rest: state.rest.concat(rest) },
     }),
@@ -61,7 +61,7 @@ test("value flag not last in group", () => {
         "-",
         "b",
         "=",
-        (state: State, v: string) => ({
+        (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, b: state.b + Number(v) },
         }),
@@ -70,7 +70,7 @@ test("value flag not last in group", () => {
         "-",
         "c",
         "=",
-        (state: State, v: string) => ({
+        (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, c: state.c + Number(v) },
         }),
@@ -79,7 +79,7 @@ test("value flag not last in group", () => {
         "--",
         "abc",
         "=",
-        (state: State, v: string) => ({
+        (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, abc: state.abc + Number(v) },
         }),
@@ -137,7 +137,7 @@ test("value flag IS last in group", () => {
         "-",
         "c",
         "=",
-        (state: State, v: string) => ({
+        (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, c: state.c + Number(v) },
         }),
@@ -146,7 +146,7 @@ test("value flag IS last in group", () => {
         "--",
         "abc",
         "=",
-        (state: State, v: string) => ({
+        (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, abc: state.abc + Number(v) },
         }),
@@ -190,12 +190,12 @@ test("handle remaining as rest", () => {
         }),
       ],
     ],
-    onArg: (state: State, arg: string) => ({
+    onArg: (arg: string, state: State) => ({
       tag: "Ok",
       state: { ...state, args: state.args.concat(arg) },
       handleRemainingAsRest: true,
     }),
-    onRest: (state: State, rest: Array<string>) => ({
+    onRest: (rest: Array<string>, state: State) => ({
       tag: "Ok",
       state: { ...state, args: state.args.concat(rest) },
     }),

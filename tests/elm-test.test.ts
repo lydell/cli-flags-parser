@@ -61,7 +61,7 @@ const compilerRule: Rule = [
   "--",
   "compiler",
   "=",
-  (state: State, value: string) => ({
+  (value: string, state: State) => ({
     tag: "Ok" as const,
     state: { ...state, compiler: value },
   }),
@@ -71,7 +71,7 @@ const reportRule: Rule = [
   "--",
   "report",
   "=",
-  (state: State, value: string) => {
+  (value: string, state: State) => {
     const result = parseReport(value);
     switch (result.tag) {
       case "Ok":
@@ -89,7 +89,7 @@ const fuzzRule: Rule = [
   "--",
   "fuzz",
   "=",
-  (state: State, value: string) => {
+  (value: string, state: State) => {
     const result = parsePositiveInteger(value);
     switch (result.tag) {
       case "Ok":
@@ -107,7 +107,7 @@ const seedRule: Rule = [
   "--",
   "seed",
   "=",
-  (state: State, value: string) => {
+  (value: string, state: State) => {
     const result = parsePositiveInteger(value);
     switch (result.tag) {
       case "Ok":
@@ -277,7 +277,7 @@ function elmTest(argv: Array<string>): Command | string {
   const result = parse(argv, {
     initialState,
     flagRulesFromState,
-    onArg: (state, arg) => {
+    onArg: (arg, state) => {
       if (state.command === "test" && state.args.length === 0) {
         switch (arg) {
           case "help":
@@ -310,7 +310,7 @@ function elmTest(argv: Array<string>): Command | string {
         };
       }
     },
-    onRest: (state, rest) => ({
+    onRest: (rest, state) => ({
       tag: "Ok",
       state: { ...state, args: state.args.concat(rest) },
     }),
