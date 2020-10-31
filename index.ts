@@ -66,7 +66,7 @@ export default function parse<Error>(
 
     const match = optionRegex.exec(arg);
     if (match !== null) {
-      const argDash: Dash = match[1] === "-" ? "-" : "--";
+      const flagDash: Dash = match[1] === "-" ? "-" : "--";
       const beforeEquals: string = match[2];
       const maybeAfterEquals: string | undefined = match[3];
 
@@ -78,7 +78,7 @@ export default function parse<Error>(
           : { tag: "ViaEquals", value: maybeAfterEquals };
 
       const items: Array<[string, FlagValue]> =
-        argDash === "-"
+        flagDash === "-"
           ? beforeEquals
               .split("")
               .map((char, charIndex, array) => [
@@ -89,12 +89,12 @@ export default function parse<Error>(
               ])
           : [[beforeEquals, afterEquals]];
 
-      for (const [argName, flagValue] of items) {
+      for (const [flagName, flagValue] of items) {
         let foundMatch = false;
 
         for (const rule of rules) {
           const [dash, name] = rule;
-          if (dash === argDash && name === argName) {
+          if (dash === flagDash && name === flagName) {
             switch (rule[2]) {
               case "switch": {
                 switch (flagValue.tag) {
@@ -187,7 +187,7 @@ export default function parse<Error>(
             error: {
               tag: "UnknownFlag",
               dash: "--",
-              name: argName,
+              name: flagName,
             },
           };
         }
