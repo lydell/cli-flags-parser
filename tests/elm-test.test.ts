@@ -300,7 +300,7 @@ function elmTest(argv: Array<string>): Command | string {
   const result = parse(argv, {
     initialFlagRules: getRulesFromCommand(command, options),
     onArg: (arg) => {
-      if (command === undefined) {
+      if (command === "none") {
         switch (arg) {
           case "init":
           case "install":

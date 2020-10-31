@@ -1,8 +1,8 @@
 export type Dash = "-" | "--";
 
-export type FlagRule<CustomError> =
-  | [Dash, string, "switch", Callback<void, CustomError>]
-  | [Dash, string, "value", Callback<string, CustomError>];
+export type FlagRule<State, CustomError> =
+  | [Dash, string, "switch", Callback<void, State, CustomError>]
+  | [Dash, string, "value", Callback<string, State, CustomError>];
 
 export type FlagError =
   | {
@@ -33,39 +33,67 @@ type FlagValue =
   | { tag: "ViaNextArg"; value: string }
   | { tag: "NextArgMissing" };
 
-export type Callback<Arg, CustomError> = (
-  arg: Arg
+export type Callback<Arg, State, CustomError> = (
+  arg: Arg,
+  state: State
 ) =>
-  | { tag: "NewFlagRules"; rules: Array<FlagRule<CustomError>> }
-  | { tag: "HandleRemainingAsRest" }
-  | { tag: "Error"; error: CustomError }
-  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- This IS a return type!
-  | void;
+  | { tag: "Ok"; state: State; handleRemainingAsRest?: boolean }
+  | { tag: "Error"; error: CustomError };
 
-export type Options<CustomError> = {
-  initialFlagRules: Array<FlagRule<CustomError>>;
-  onArg: Callback<string, CustomError>;
-  onRest: (rest: Array<string>) => void;
+export type Options<State, CustomError> = {
+  initialState: State;
+  flagRulesFromState: (state: State) => Array<FlagRule<State, CustomError>>;
+  onArg: Callback<string, State, CustomError>;
+  onRest: Callback<Array<string>, State, CustomError>;
 };
 
-export type ParseResult<CustomError> =
-  | { tag: "Ok" }
+export type ParseResult<State, CustomError> =
+  | { tag: "Ok"; state: State }
   | { tag: "FlagError"; error: FlagError }
   | { tag: "CustomError"; error: CustomError };
 
 const optionRegex = /^(--?)([^-=][^=]*)(?:=([^]*))?$/;
 
-export default function parse<CustomError>(
+export default function parse<State, CustomError>(
   argv: Array<string>,
-  options: Options<CustomError>
-): ParseResult<CustomError> {
-  let rules = options.initialFlagRules;
+  options: Options<State, CustomError>
+): ParseResult<State, CustomError> {
+  let state = options.initialState;
+  let rules = options.flagRulesFromState(state);
 
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
+
+    const handleRemainingAsRest = (): ParseResult<State, CustomError> => {
+      const result = options.onRest(argv.slice(index + 1), state);
+      switch (result.tag) {
+        case "Ok":
+          return { tag: "Ok", state: result.state };
+        case "Error":
+          return { tag: "CustomError", error: result.error };
+      }
+    };
+
+    const handleCallbackResult = (
+      result: ReturnType<Callback<unknown, State, CustomError>>
+    ): ParseResult<State, CustomError> | undefined => {
+      switch (result.tag) {
+        case "Ok":
+          ({ state } = result);
+          rules = options.flagRulesFromState(state);
+          return result.handleRemainingAsRest === true
+            ? handleRemainingAsRest()
+            : undefined;
+        case "Error":
+          return {
+            tag: "CustomError",
+            error: result.error,
+          };
+      }
+    };
+
     if (arg === "--") {
-      options.onRest(argv.slice(index + 1));
-      return { tag: "Ok" };
+      return handleRemainingAsRest();
     }
 
     const match = optionRegex.exec(arg);
@@ -114,41 +142,35 @@ export default function parse<CustomError>(
                     };
                   case "ViaNextArg":
                   case "NextArgMissing":
-                  case "NotLastInGroup":
-                    // Continue below.
+                  case "NotLastInGroup": {
+                    const callback = rule[3];
+                    const result = handleCallbackResult(
+                      callback(undefined, state)
+                    );
+                    if (result !== undefined) {
+                      return result;
+                    }
                     break;
-                }
-                const callback = rule[3];
-                const result = callback(undefined);
-                if (result === undefined) {
-                  break;
-                }
-                switch (result.tag) {
-                  case "NewFlagRules":
-                    ({ rules } = result);
-                    break;
-                  case "HandleRemainingAsRest":
-                    options.onRest(argv.slice(index + 1));
-                    return { tag: "Ok" };
-                  case "Error":
-                    return {
-                      tag: "CustomError",
-                      error: result.error,
-                    };
+                  }
                 }
                 break;
               }
 
               case "value": {
-                let value;
+                const callback = rule[3];
                 switch (flagValue.tag) {
-                  case "ViaEquals":
-                    ({ value } = flagValue);
-                    break;
+                  // @ts-expect-error: Fallthrough intended.
                   case "ViaNextArg":
-                    ({ value } = flagValue);
                     index++;
+                  case "ViaEquals": {
+                    const result = handleCallbackResult(
+                      callback(flagValue.value, state)
+                    );
+                    if (result !== undefined) {
+                      return result;
+                    }
                     break;
+                  }
                   case "NotLastInGroup":
                     return {
                       tag: "FlagError",
@@ -166,24 +188,6 @@ export default function parse<CustomError>(
                         dash,
                         name,
                       },
-                    };
-                }
-                const callback = rule[3];
-                const result = callback(value);
-                if (result === undefined) {
-                  break;
-                }
-                switch (result.tag) {
-                  case "NewFlagRules":
-                    ({ rules } = result);
-                    break;
-                  case "HandleRemainingAsRest":
-                    options.onRest(argv.slice(index + 1));
-                    return { tag: "Ok" };
-                  case "Error":
-                    return {
-                      tag: "CustomError",
-                      error: result.error,
                     };
                 }
                 break;
@@ -206,25 +210,12 @@ export default function parse<CustomError>(
         }
       }
     } else {
-      const result = options.onArg(arg);
-      if (result === undefined) {
-        break;
-      }
-      switch (result.tag) {
-        case "NewFlagRules":
-          ({ rules } = result);
-          break;
-        case "HandleRemainingAsRest":
-          options.onRest(argv.slice(index + 1));
-          return { tag: "Ok" };
-        case "Error":
-          return {
-            tag: "CustomError",
-            error: result.error,
-          };
+      const result = handleCallbackResult(options.onArg(arg, state));
+      if (result !== undefined) {
+        return result;
       }
     }
   }
 
-  return { tag: "Ok" };
+  return { tag: "Ok", state };
 }
