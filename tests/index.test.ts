@@ -50,16 +50,14 @@ test("value flag not last in group", () => {
     },
     flagRulesFromState: () => [
       [
-        "-",
-        "a",
+        "-a",
         (state: State) => ({
           tag: "Ok" as const,
           state: { ...state, a: state.a + 1 },
         }),
       ],
       [
-        "-",
-        "b",
+        "-b",
         "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
@@ -67,8 +65,7 @@ test("value flag not last in group", () => {
         }),
       ],
       [
-        "-",
-        "c",
+        "-c",
         "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
@@ -76,8 +73,7 @@ test("value flag not last in group", () => {
         }),
       ],
       [
-        "--",
-        "abc",
+        "--abc",
         "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
@@ -92,8 +88,7 @@ test("value flag not last in group", () => {
   expect(result).toMatchInlineSnapshot(`
     Object {
       "error": Object {
-        "dash": "-",
-        "name": "b",
+        "name": "-b",
         "tag": "ValueFlagNotLastInGroup",
         "valueDescription": "a number",
       },
@@ -119,24 +114,21 @@ test("value flag IS last in group", () => {
     },
     flagRulesFromState: () => [
       [
-        "-",
-        "a",
+        "-a",
         (state: State) => ({
           tag: "Ok" as const,
           state: { ...state, a: state.a + 1 },
         }),
       ],
       [
-        "-",
-        "b",
+        "-b",
         (state: State) => ({
           tag: "Ok" as const,
           state: { ...state, b: state.b + 1 },
         }),
       ],
       [
-        "-",
-        "c",
+        "-c",
         "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
@@ -144,8 +136,7 @@ test("value flag IS last in group", () => {
         }),
       ],
       [
-        "--",
-        "abc",
+        "--abc",
         "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
@@ -183,8 +174,7 @@ test("handle remaining as rest", () => {
     },
     flagRulesFromState: () => [
       [
-        "--",
-        "no-install",
+        "--no-install",
         (state: State) => ({
           tag: "Ok" as const,
           state: { ...state, noInstall: state.noInstall + 1 },

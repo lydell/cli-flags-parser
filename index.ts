@@ -1,9 +1,6 @@
-export type Dash = "-" | "--";
-
 export type FlagRule<State, FlagError> =
-  | [dash: Dash, name: string, callback: VoidCallback<State, FlagError>]
+  | [name: string, callback: VoidCallback<State, FlagError>]
   | [
-      dash: Dash,
       name: string,
       valueDescription: string,
       callback: ValueCallback<string, State, FlagError>
@@ -12,30 +9,25 @@ export type FlagRule<State, FlagError> =
 export type FlagErrorWrapper<FlagError> =
   | {
       tag: "UnexpectedFlagValue";
-      dash: Dash;
       name: string;
       value: string;
     }
   | {
       tag: "MissingFlagValue";
-      dash: Dash;
       name: string;
       valueDescription: string;
     }
   | {
       tag: "ValueFlagNotLastInGroup";
-      dash: "-";
       name: string;
       valueDescription: string;
     }
   | {
       tag: "UnknownFlag";
-      dash: Dash;
       name: string;
     }
   | {
       tag: "Custom";
-      dash: Dash;
       name: string;
       valueDescription: string | undefined;
       error: FlagError;
@@ -72,7 +64,7 @@ export type ParseResult<State, FlagError, ArgError> =
   | { tag: "FlagError"; error: FlagErrorWrapper<FlagError> }
   | { tag: "ArgError"; error: ArgError };
 
-const optionRegex = /^(--?)([^-=][^=]*)(?:=([^]*))?$/;
+const optionRegex = /^(--?[^-=][^=]*)(?:=([^]*))?$/;
 
 export default function parse<State, FlagError = never, ArgError = never>(
   argv: Array<string>,
@@ -99,7 +91,6 @@ export default function parse<State, FlagError = never, ArgError = never>(
     };
 
     const handleFlagCallbackResult = (
-      dash: Dash,
       name: string,
       valueDescription: string | undefined,
       result: CallbackResult<State, FlagError>
@@ -116,7 +107,6 @@ export default function parse<State, FlagError = never, ArgError = never>(
             tag: "FlagError",
             error: {
               tag: "Custom",
-              dash,
               name,
               valueDescription,
               error: result.error,
@@ -149,9 +139,8 @@ export default function parse<State, FlagError = never, ArgError = never>(
 
     const match = optionRegex.exec(arg);
     if (match !== null) {
-      const flagDash: Dash = match[1] === "-" ? "-" : "--";
-      const beforeEquals: string = match[2];
-      const maybeAfterEquals: string | undefined = match[3];
+      const beforeEquals: string = match[1];
+      const maybeAfterEquals: string | undefined = match[2];
 
       const afterEquals: FlagValue =
         maybeAfterEquals === undefined
@@ -160,32 +149,34 @@ export default function parse<State, FlagError = never, ArgError = never>(
             : { tag: "NextArgMissing" }
           : { tag: "ViaEquals", value: maybeAfterEquals };
 
-      const items: Array<[name: string, flagValue: FlagValue]> =
-        flagDash === "-"
-          ? beforeEquals
-              .split("")
-              .map((char, charIndex, array) => [
-                char,
-                charIndex === array.length - 1
-                  ? afterEquals
-                  : { tag: "NotLastInGroup" },
-              ])
-          : [[beforeEquals, afterEquals]];
+      const items: Array<[
+        name: string,
+        flagValue: FlagValue
+      ]> = beforeEquals.startsWith("--")
+        ? [[beforeEquals, afterEquals]]
+        : beforeEquals
+            .slice(1)
+            .split("")
+            .map((char, charIndex, array) => [
+              `-${char}`,
+              charIndex === array.length - 1
+                ? afterEquals
+                : { tag: "NotLastInGroup" },
+            ]);
 
       for (const [flagName, flagValue] of items) {
         let foundMatch = false;
 
         for (const rule of rules) {
-          const [dash, name] = rule;
-          if (dash === flagDash && name === flagName) {
-            if (rule.length === 3) {
+          const [name] = rule;
+          if (name === flagName) {
+            if (rule.length === 2) {
               switch (flagValue.tag) {
                 case "ViaEquals":
                   return {
                     tag: "FlagError",
                     error: {
                       tag: "UnexpectedFlagValue",
-                      dash,
                       name,
                       value: flagValue.value,
                     },
@@ -193,9 +184,8 @@ export default function parse<State, FlagError = never, ArgError = never>(
                 case "ViaNextArg":
                 case "NextArgMissing":
                 case "NotLastInGroup": {
-                  const [, , callback] = rule;
+                  const [, callback] = rule;
                   const result = handleFlagCallbackResult(
-                    dash,
                     name,
                     undefined,
                     callback(state)
@@ -206,14 +196,13 @@ export default function parse<State, FlagError = never, ArgError = never>(
                 }
               }
             } else {
-              const [, , valueDescription, callback] = rule;
+              const [, valueDescription, callback] = rule;
               switch (flagValue.tag) {
                 // @ts-expect-error: Fallthrough intended.
                 case "ViaNextArg":
                   index++;
                 case "ViaEquals": {
                   const result = handleFlagCallbackResult(
-                    dash,
                     name,
                     valueDescription,
                     callback(flagValue.value, state)
@@ -228,7 +217,6 @@ export default function parse<State, FlagError = never, ArgError = never>(
                     tag: "FlagError",
                     error: {
                       tag: "ValueFlagNotLastInGroup",
-                      dash: "-",
                       name,
                       valueDescription,
                     },
@@ -238,7 +226,6 @@ export default function parse<State, FlagError = never, ArgError = never>(
                     tag: "FlagError",
                     error: {
                       tag: "MissingFlagValue",
-                      dash,
                       name,
                       valueDescription,
                     },
@@ -255,7 +242,6 @@ export default function parse<State, FlagError = never, ArgError = never>(
             tag: "FlagError",
             error: {
               tag: "UnknownFlag",
-              dash: flagDash,
               name: flagName,
             },
           };

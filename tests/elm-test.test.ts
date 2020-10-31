@@ -42,8 +42,7 @@ type State = {
 type Rule = FlagRule<State, string>;
 
 const helpRule: Rule = [
-  "--",
-  "help",
+  "--help",
   (state) => ({
     tag: "Ok",
     state: { ...state, help: true },
@@ -52,8 +51,7 @@ const helpRule: Rule = [
 ];
 
 const helpRuleShort: Rule = [
-  "-",
-  "h",
+  "-h",
   (state) => ({
     tag: "Ok",
     state: { ...state, help: true },
@@ -62,14 +60,12 @@ const helpRuleShort: Rule = [
 ];
 
 const versionRule: Rule = [
-  "--",
-  "version",
+  "--version",
   (state) => ({ tag: "Ok", state: { ...state, version: true } }),
 ];
 
 const compilerRule: Rule = [
-  "--",
-  "compiler",
+  "--compiler",
   "a path to an Elm executable",
   (value: string, state: State) => ({
     tag: "Ok" as const,
@@ -78,8 +74,7 @@ const compilerRule: Rule = [
 ];
 
 const reportRule: Rule = [
-  "--",
-  "report",
+  "--report",
   "a reporter",
   (value: string, state: State) => {
     const result = parseReport(value);
@@ -96,8 +91,7 @@ const reportRule: Rule = [
 ];
 
 const fuzzRule: Rule = [
-  "--",
-  "fuzz",
+  "--fuzz",
   "a number",
   (value: string, state: State) => {
     const result = parsePositiveInteger(value);
@@ -114,8 +108,7 @@ const fuzzRule: Rule = [
 ];
 
 const seedRule: Rule = [
-  "--",
-  "seed",
+  "--seed",
   "a number",
   (value: string, state: State) => {
     const result = parsePositiveInteger(value);
@@ -132,8 +125,7 @@ const seedRule: Rule = [
 ];
 
 const watchRule: Rule = [
-  "--",
-  "watch",
+  "--watch",
   (state) => ({ tag: "Ok", state: { ...state, watch: true } }),
 ];
 
@@ -338,10 +330,8 @@ function elmTest(argv: Array<string>): Command | string {
       }
     }
 
-    case "FlagError": {
-      const { error } = result;
-      return `${error.dash}${error.name}: ${flagErrorToString(error)}`;
-    }
+    case "FlagError":
+      return `${result.error.name}: ${flagErrorToString(result.error)}`;
 
     case "ArgError":
       return result.error;
@@ -351,7 +341,7 @@ function elmTest(argv: Array<string>): Command | string {
 function flagErrorToString(error: FlagErrorWrapper<string>): string {
   switch (error.tag) {
     case "UnknownFlag":
-      return allRules.some(([, name]) => name === error.name)
+      return allRules.some(([name]) => name === error.name)
         ? "Invalid flag in this context"
         : "Unknown flag";
     case "MissingFlagValue":
