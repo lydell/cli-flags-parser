@@ -1,6 +1,6 @@
 import parse, { FlagRule } from "../index";
 
-type IntermediateCommand = "none" | "init" | "install" | "make" | "test";
+type IntermediateCommand = "help" | "init" | "install" | "make" | "test";
 
 type Command =
   | { tag: "help" }
@@ -178,7 +178,7 @@ function parseReport(string: string): Result<string, Report> {
 }
 
 function parseCommand(state: State): Result<string, Command> {
-  if (state.help || (state.command === "test" && state.args[0] === "help")) {
+  if (state.help) {
     return { tag: "Ok", value: { tag: "help" } };
   }
 
@@ -189,7 +189,9 @@ function parseCommand(state: State): Result<string, Command> {
   const got = `${state.args.length}: ${state.args.join(" ")}`;
 
   switch (state.command) {
-    case "none":
+    case "help":
+      return { tag: "Ok", value: { tag: "help" } };
+
     case "test":
       return {
         tag: "Ok",
@@ -247,8 +249,8 @@ function flagRulesFromState(state: State): Array<FlagRule<State, CustomError>> {
   const common = [helpRule, versionRule, compilerRule];
 
   switch (state.command) {
-    case "none":
-      return common;
+    case "help":
+      return [];
 
     case "init":
       return common;
@@ -266,7 +268,7 @@ function flagRulesFromState(state: State): Array<FlagRule<State, CustomError>> {
 
 function elmTest(argv: Array<string>): Command | string {
   const initialState: State = {
-    command: "none",
+    command: "test",
     args: [],
     compiler: undefined,
     report: "console",
@@ -281,8 +283,14 @@ function elmTest(argv: Array<string>): Command | string {
     initialState,
     flagRulesFromState,
     onArg: (state, arg) => {
-      if (state.command === "none") {
+      if (state.command === "test" && state.args.length === 0) {
         switch (arg) {
+          case "help":
+            return {
+              tag: "Ok",
+              state: { ...state, command: "help" as const },
+              handleRemainingAsRest: true,
+            };
           case "init":
           case "install":
           case "make":
