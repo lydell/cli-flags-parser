@@ -1,6 +1,31 @@
 import parse, { FlagRule } from "../index";
 
-type Command = "init" | "install" | "make" | "test";
+type IntermediateCommand = "none" | "init" | "install" | "make" | "test";
+
+type Command =
+  | { tag: "help" }
+  | { tag: "version" }
+  | { tag: "init" }
+  | {
+      tag: "install";
+      packageName: string;
+      compiler: string | undefined;
+    }
+  | {
+      tag: "make";
+      testFileGlobs: Array<string>;
+      report: Report;
+      compiler: string | undefined;
+    }
+  | {
+      tag: "test";
+      testFileGlobs: Array<string>;
+      report: Report;
+      fuzz: number;
+      seed: number;
+      watch: boolean;
+      compiler: string | undefined;
+    };
 
 type CustomError = string;
 
@@ -25,7 +50,7 @@ function parseReport(string: string): Result<string, Report> {
     default:
       return {
         tag: "Error",
-        message: `Expected console, json or junit, but got: ${string}`,
+        error: `Expected console, json or junit, but got: ${string}`,
       };
   }
 }
@@ -70,7 +95,7 @@ const reportRule = (options: Options): FlagRule<CustomError> => [
       case "Error":
         return {
           tag: "Error" as const,
-          error: `--report requires a known reporter: ${result.message}`,
+          error: `--report requires a known reporter: ${result.error}`,
         };
     }
   },
@@ -89,7 +114,7 @@ const fuzzRule = (options: Options): FlagRule<CustomError> => [
       case "Error":
         return {
           tag: "Error" as const,
-          error: `--fuzz requires a number: ${result.message}`,
+          error: `--fuzz requires a number: ${result.error}`,
         };
     }
   },
@@ -108,7 +133,7 @@ const seedRule = (options: Options): FlagRule<CustomError> => [
       case "Error":
         return {
           tag: "Error" as const,
-          error: `--seed requires a number: ${result.message}`,
+          error: `--seed requires a number: ${result.error}`,
         };
     }
   },
@@ -135,25 +160,25 @@ const allRules = [
 
 type Result<Error, Value> =
   | { tag: "Ok"; value: Value }
-  | { tag: "Error"; message: Error };
+  | { tag: "Error"; error: Error };
 
 function parsePositiveInteger(string: string): Result<string, number> {
   const number = Number(string);
   return !/^\d+$/.test(string)
     ? {
         tag: "Error",
-        message: `Expected one or more digits, but got: ${string}`,
+        error: `Expected one or more digits, but got: ${string}`,
       }
     : !Number.isFinite(number)
     ? {
         tag: "Error",
-        message: `Expected a finite number, but got: ${number}`,
+        error: `Expected a finite number, but got: ${number}`,
       }
     : { tag: "Ok", value: number };
 }
 
 function getRulesFromCommand(
-  command: Command | undefined,
+  command: IntermediateCommand,
   options: Options
 ): Array<FlagRule<CustomError>> {
   const common = [
@@ -162,7 +187,7 @@ function getRulesFromCommand(
     compilerRule(options),
   ];
   switch (command) {
-    case undefined:
+    case "none":
       return common;
 
     case "init":
@@ -185,7 +210,77 @@ function getRulesFromCommand(
   }
 }
 
-function elmTest(argv: Array<string>): string {
+function parseCommand(
+  command: IntermediateCommand,
+  args: Array<string>,
+  options: Options
+): Result<string, Command> {
+  if (options.help || (command === "none" && args[0] === "help")) {
+    return { tag: "Ok", value: { tag: "help" } };
+  }
+
+  if (options.version) {
+    return { tag: "Ok", value: { tag: "version" } };
+  }
+
+  const got = `${args.length}: ${args.join(" ")}`;
+
+  switch (command) {
+    case "none":
+    case "test":
+      return {
+        tag: "Ok",
+        value: {
+          tag: "test",
+          testFileGlobs: args,
+          fuzz: options.fuzz,
+          seed: options.seed,
+          report: options.report,
+          watch: options.watch,
+          compiler: options.compiler,
+        },
+      };
+
+    case "init":
+      return args.length > 0
+        ? { tag: "Error", error: `init takes no arguments, but got ${got}` }
+        : { tag: "Ok", value: { tag: "init" } };
+
+    case "install":
+      return args.length === 0
+        ? {
+            tag: "Error",
+            error:
+              "You need to provide the package you want to install. For example: elm-test install elm/regex",
+          }
+        : args.length === 1
+        ? {
+            tag: "Ok",
+            value: {
+              tag: "install",
+              packageName: args[0],
+              compiler: options.compiler,
+            },
+          }
+        : {
+            tag: "Error",
+            error: `install takes one single argument, but got ${got}`,
+          };
+
+    case "make":
+      return {
+        tag: "Ok",
+        value: {
+          tag: "make",
+          testFileGlobs: args,
+          report: options.report,
+          compiler: options.compiler,
+        },
+      };
+  }
+}
+
+function elmTest(argv: Array<string>): Command | string {
   const options: Options = {
     compiler: undefined,
     report: "console",
@@ -199,7 +294,7 @@ function elmTest(argv: Array<string>): string {
     (rule) => rule(options)[1]
   );
 
-  let command: Command | undefined = undefined;
+  let command: IntermediateCommand = "none";
   const args: Array<string> = [];
 
   const result = parse(argv, {
@@ -228,10 +323,15 @@ function elmTest(argv: Array<string>): string {
   });
 
   switch (result.tag) {
-    case "Ok":
-      return `elm-test ${command ?? "test"} ${args.join(" ")} ${JSON.stringify(
-        options
-      )}`;
+    case "Ok": {
+      const result2 = parseCommand(command, args, options);
+      switch (result2.tag) {
+        case "Ok":
+          return result2.value;
+        case "Error":
+          return result2.error;
+      }
+    }
 
     case "FlagError":
       switch (result.error.tag) {
@@ -244,19 +344,42 @@ function elmTest(argv: Array<string>): string {
         case "ValueFlagNotLastInGroup":
           return `This flag requires a value and must be last in the group: ${result.error.dash}${result.error.name}`;
         case "ValueSuppliedToSwitch":
-          return `This flags takes no value but was given one: ${result.error.dash}${result.error.name}=${result.error.value}`;
+          return `This flag takes no value but was given one: ${result.error.dash}${result.error.name}=${result.error.value}`;
       }
 
     case "CustomError":
-      return `CustomError: ${result.error}`;
+      return result.error;
   }
 }
 
 describe("elm-test", () => {
   test("--help", () => {
-    expect(elmTest(["--help"])).toMatchInlineSnapshot(
-      // TODO: Parse fully and better return type.
-      `"elm-test test  {\\"report\\":\\"console\\",\\"fuzz\\":100,\\"seed\\":1337,\\"help\\":true,\\"version\\":false,\\"watch\\":false}"`
+    expect(elmTest(["--help"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "help",
+      }
+    `);
+  });
+
+  test("--help with command", () => {
+    expect(elmTest(["install", "--help"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "help",
+      }
+    `);
+  });
+
+  test("--version", () => {
+    expect(elmTest(["--version"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "version",
+      }
+    `);
+  });
+
+  test("--seed with make", () => {
+    expect(elmTest(["make", "--seed=123"])).toMatchInlineSnapshot(
+      `"Invalid flag in this context: --seed"`
     );
   });
 });
