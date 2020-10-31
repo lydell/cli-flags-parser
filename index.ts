@@ -17,10 +17,21 @@ type FlagError =
       name: string;
     }
   | {
+      tag: "ValueFlagNotLastInGroup";
+      dash: "-";
+      name: string;
+    }
+  | {
       tag: "UnknownFlag";
       dash: Dash;
       name: string;
     };
+
+type FlagValue =
+  | { tag: "ViaEquals"; value: string }
+  | { tag: "NotLastInGroup" }
+  | { tag: "ViaNextArg"; value: string }
+  | { tag: "NextArgMissing" };
 
 type Callback<Arg, Error> = (
   arg: Arg
@@ -35,7 +46,7 @@ type Options<Error> = {
   onRest: (rest: Array<string>) => void;
 };
 
-const longOption = /^--([^-=][^=]*)(?:=([^]*))?$/;
+const optionRegex = /^(--?)([^-=][^=]*)(?:=([^]*))?$/;
 
 export default function parse<Error>(
   argv: Array<string>,
@@ -53,99 +64,148 @@ export default function parse<Error>(
       break;
     }
 
-    const longOptionMatch = longOption.exec(arg);
-    if (longOptionMatch !== null) {
-      const argName: string = longOptionMatch[1];
-      const maybeValue: string | undefined = longOptionMatch[2];
-      let foundMatch = false;
+    const match = optionRegex.exec(arg);
+    if (match !== null) {
+      const argDash: Dash = match[1] === "-" ? "-" : "--";
+      const beforeEquals: string = match[2];
+      const maybeAfterEquals: string | undefined = match[3];
 
-      const getValue = (): string | undefined => {
-        if (maybeValue !== undefined) {
-          return maybeValue;
-        } else {
-          index++;
-          return index < argv.length ? argv[index] : undefined;
-        }
-      };
+      const afterEquals: FlagValue =
+        maybeAfterEquals === undefined
+          ? index < argv.length - 1
+            ? { tag: "ViaNextArg", value: argv[index + 1] }
+            : { tag: "NextArgMissing" }
+          : { tag: "ViaEquals", value: maybeAfterEquals };
 
-      for (const rule of rules) {
-        const [dash, name] = rule;
-        if (dash === "--" && name === argName) {
-          switch (rule[2]) {
-            case "switch": {
-              if (maybeValue !== undefined) {
-                return {
-                  tag: "FlagError",
-                  error: {
-                    tag: "ValueSuppliedToSwitch",
-                    dash,
-                    name,
-                    value: maybeValue,
-                  },
-                };
-              }
-              const callback = rule[3];
-              const result = callback(undefined);
-              if (result === undefined) {
+      const items: Array<[string, FlagValue]> =
+        argDash === "-"
+          ? beforeEquals
+              .split("")
+              .map((char, charIndex, array) => [
+                char,
+                charIndex === array.length - 1
+                  ? afterEquals
+                  : { tag: "NotLastInGroup" },
+              ])
+          : [[beforeEquals, afterEquals]];
+
+      for (const [argName, flagValue] of items) {
+        let foundMatch = false;
+
+        for (const rule of rules) {
+          const [dash, name] = rule;
+          if (dash === argDash && name === argName) {
+            switch (rule[2]) {
+              case "switch": {
+                switch (flagValue.tag) {
+                  case "ViaEquals":
+                  case "ViaNextArg":
+                    return {
+                      tag: "FlagError",
+                      error: {
+                        tag: "ValueSuppliedToSwitch",
+                        dash,
+                        name,
+                        value: flagValue.value,
+                      },
+                    };
+                  case "NextArgMissing":
+                  case "NotLastInGroup":
+                    // Continue below.
+                    break;
+                }
+                const callback = rule[3];
+                const result = callback(undefined);
+                if (result === undefined) {
+                  break;
+                }
+                switch (result.tag) {
+                  case "NewFlagRules":
+                    ({ rules } = result);
+                    break;
+                  case "Error":
+                    return {
+                      tag: "CustomError",
+                      error: result.error,
+                    };
+                }
                 break;
               }
-              switch (result.tag) {
-                case "NewFlagRules":
-                  ({ rules } = result);
-                  break;
-                case "Error":
-                  return {
-                    tag: "CustomError",
-                    error: result.error,
-                  };
-              }
-              break;
-            }
 
-            case "value": {
-              const value = getValue();
-              if (value === undefined) {
-                return {
-                  tag: "FlagError",
-                  error: {
-                    tag: "MissingValue",
-                    dash,
-                    name,
-                  },
-                };
-              }
-              const callback = rule[3];
-              const result = callback(value);
-              if (result === undefined) {
+              case "value": {
+                let value;
+                switch (flagValue.tag) {
+                  case "ViaEquals":
+                  case "ViaNextArg":
+                    ({ value } = flagValue);
+                    break;
+                  case "NotLastInGroup":
+                    return {
+                      tag: "FlagError",
+                      error: {
+                        tag: "ValueFlagNotLastInGroup",
+                        dash: "-",
+                        name,
+                      },
+                    };
+                  case "NextArgMissing":
+                    return {
+                      tag: "FlagError",
+                      error: {
+                        tag: "MissingValue",
+                        dash,
+                        name,
+                      },
+                    };
+                }
+                const callback = rule[3];
+                const result = callback(value);
+                if (result === undefined) {
+                  break;
+                }
+                switch (result.tag) {
+                  case "NewFlagRules":
+                    ({ rules } = result);
+                    break;
+                  case "Error":
+                    return {
+                      tag: "CustomError",
+                      error: result.error,
+                    };
+                }
                 break;
               }
-              switch (result.tag) {
-                case "NewFlagRules":
-                  ({ rules } = result);
-                  break;
-                case "Error":
-                  return {
-                    tag: "CustomError",
-                    error: result.error,
-                  };
-              }
-              break;
             }
+            foundMatch = true;
+            break;
           }
-          foundMatch = true;
-          break;
+        }
+
+        if (!foundMatch) {
+          return {
+            tag: "FlagError",
+            error: {
+              tag: "UnknownFlag",
+              dash: "--",
+              name: argName,
+            },
+          };
         }
       }
-
-      if (!foundMatch) {
-        return {
-          tag: "FlagError",
-          error: {
-            tag: "UnknownFlag",
-            dash: "--",
-            name: argName,
-          },
-        };
+    } else {
+      const result = options.onArg(arg);
+      if (result === undefined) {
+        break;
+      }
+      switch (result.tag) {
+        case "NewFlagRules":
+          ({ rules } = result);
+          break;
+        case "Error":
+          return {
+            tag: "CustomError",
+            error: result.error,
+          };
       }
     }
   }
