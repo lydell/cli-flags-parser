@@ -1,10 +1,10 @@
-type Dash = "-" | "--";
+export type Dash = "-" | "--";
 
-type FlagRule<Error> =
-  | [Dash, string, "switch", Callback<void, Error>]
-  | [Dash, string, "value", Callback<string, Error>];
+export type FlagRule<CustomError> =
+  | [Dash, string, "switch", Callback<void, CustomError>]
+  | [Dash, string, "value", Callback<string, CustomError>];
 
-type FlagError =
+export type FlagError =
   | {
       tag: "ValueSuppliedToSwitch";
       dash: Dash;
@@ -33,30 +33,32 @@ type FlagValue =
   | { tag: "ViaNextArg"; value: string }
   | { tag: "NextArgMissing" };
 
-type Callback<Arg, Error> = (
+export type Callback<Arg, CustomError> = (
   arg: Arg
 ) =>
-  | { tag: "NewFlagRules"; rules: Array<FlagRule<Error>> }
+  | { tag: "NewFlagRules"; rules: Array<FlagRule<CustomError>> }
   | { tag: "HandleRemainingAsRest" }
-  | { tag: "Error"; error: Error }
+  | { tag: "Error"; error: CustomError }
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- This IS a return type!
   | void;
 
-type Options<Error> = {
-  initialFlagRules: Array<FlagRule<Error>>;
-  onArg: Callback<string, Error>;
+export type Options<CustomError> = {
+  initialFlagRules: Array<FlagRule<CustomError>>;
+  onArg: Callback<string, CustomError>;
   onRest: (rest: Array<string>) => void;
 };
 
-const optionRegex = /^(--?)([^-=][^=]*)(?:=([^]*))?$/;
-
-export default function parse<Error>(
-  argv: Array<string>,
-  options: Options<Error>
-):
+export type ParseResult<CustomError> =
   | { tag: "Ok" }
   | { tag: "FlagError"; error: FlagError }
-  | { tag: "CustomError"; error: Error } {
+  | { tag: "CustomError"; error: CustomError };
+
+const optionRegex = /^(--?)([^-=][^=]*)(?:=([^]*))?$/;
+
+export default function parse<CustomError>(
+  argv: Array<string>,
+  options: Options<CustomError>
+): ParseResult<CustomError> {
   let rules = options.initialFlagRules;
 
   for (let index = 0; index < argv.length; index++) {
