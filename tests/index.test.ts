@@ -153,3 +153,49 @@ test("value flag IS last in group", () => {
     }
   `);
 });
+
+test("handle remaining as rest", () => {
+  const args: Array<string> = [];
+  const options = {
+    noInstall: 0,
+  };
+
+  const result = parse(["--no-install", "jest", "--coverage"], {
+    initialFlagRules: [
+      [
+        "--",
+        "no-install",
+        "switch",
+        () => {
+          options.noInstall++;
+        },
+      ],
+    ],
+    onArg: (arg) => {
+      args.push(arg);
+      return { tag: "HandleRemainingAsRest" };
+    },
+    onRest: (rest) => {
+      args.push(...rest);
+    },
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "tag": "Ok",
+    }
+  `);
+
+  expect(options).toMatchInlineSnapshot(`
+    Object {
+      "noInstall": 1,
+    }
+  `);
+
+  expect(args).toMatchInlineSnapshot(`
+    Array [
+      "jest",
+      "--coverage",
+    ]
+  `);
+});

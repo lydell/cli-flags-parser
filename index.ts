@@ -37,6 +37,7 @@ type Callback<Arg, Error> = (
   arg: Arg
 ) =>
   | { tag: "NewFlagRules"; rules: Array<FlagRule<Error>> }
+  | { tag: "HandleRemainingAsRest" }
   | { tag: "Error"; error: Error }
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- This IS a return type!
   | void;
@@ -62,7 +63,7 @@ export default function parse<Error>(
     const arg = argv[index];
     if (arg === "--") {
       options.onRest(argv.slice(index + 1));
-      break;
+      return { tag: "Ok" };
     }
 
     const match = optionRegex.exec(arg);
@@ -100,7 +101,6 @@ export default function parse<Error>(
               case "switch": {
                 switch (flagValue.tag) {
                   case "ViaEquals":
-                  case "ViaNextArg":
                     return {
                       tag: "FlagError",
                       error: {
@@ -110,6 +110,7 @@ export default function parse<Error>(
                         value: flagValue.value,
                       },
                     };
+                  case "ViaNextArg":
                   case "NextArgMissing":
                   case "NotLastInGroup":
                     // Continue below.
@@ -124,6 +125,9 @@ export default function parse<Error>(
                   case "NewFlagRules":
                     ({ rules } = result);
                     break;
+                  case "HandleRemainingAsRest":
+                    options.onRest(argv.slice(index + 1));
+                    return { tag: "Ok" };
                   case "Error":
                     return {
                       tag: "CustomError",
@@ -137,8 +141,11 @@ export default function parse<Error>(
                 let value;
                 switch (flagValue.tag) {
                   case "ViaEquals":
+                    ({ value } = flagValue);
+                    break;
                   case "ViaNextArg":
                     ({ value } = flagValue);
+                    index++;
                     break;
                   case "NotLastInGroup":
                     return {
@@ -168,6 +175,9 @@ export default function parse<Error>(
                   case "NewFlagRules":
                     ({ rules } = result);
                     break;
+                  case "HandleRemainingAsRest":
+                    options.onRest(argv.slice(index + 1));
+                    return { tag: "Ok" };
                   case "Error":
                     return {
                       tag: "CustomError",
@@ -202,6 +212,9 @@ export default function parse<Error>(
         case "NewFlagRules":
           ({ rules } = result);
           break;
+        case "HandleRemainingAsRest":
+          options.onRest(argv.slice(index + 1));
+          return { tag: "Ok" };
         case "Error":
           return {
             tag: "CustomError",
