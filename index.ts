@@ -1,10 +1,10 @@
 export type Dash = "-" | "--";
 
-export type FlagRule<State, CustomFlagError> =
-  | [Dash, string, Callback<void, State, CustomFlagError>]
-  | [Dash, string, "=", Callback<string, State, CustomFlagError>];
+export type FlagRule<State, FlagError> =
+  | [Dash, string, Callback<void, State, FlagError>]
+  | [Dash, string, "=", Callback<string, State, FlagError>];
 
-export type FlagError<CustomFlagError> =
+export type FlagErrorWrapper<FlagError> =
   | {
       tag: "UnexpectedFlagValue";
       dash: Dash;
@@ -30,7 +30,7 @@ export type FlagError<CustomFlagError> =
       tag: "Custom";
       dash: Dash;
       name: string;
-      error: CustomFlagError;
+      error: FlagError;
     };
 
 type FlagValue =
@@ -39,35 +39,31 @@ type FlagValue =
   | { tag: "ViaNextArg"; value: string }
   | { tag: "NextArgMissing" };
 
-type Callback<Arg, State, CustomError> = (
+type Callback<Arg, State, Error> = (
   state: State,
   arg: Arg
 ) =>
   | { tag: "Ok"; state: State; handleRemainingAsRest?: boolean }
-  | { tag: "Error"; error: CustomError };
+  | { tag: "Error"; error: Error };
 
-export type Options<State, CustomFlagError, CustomError> = {
+export type Options<State, FlagError, ArgError> = {
   initialState: State;
-  flagRulesFromState: (state: State) => Array<FlagRule<State, CustomFlagError>>;
-  onArg: Callback<string, State, CustomError>;
-  onRest: Callback<Array<string>, State, CustomError>;
+  flagRulesFromState: (state: State) => Array<FlagRule<State, FlagError>>;
+  onArg: Callback<string, State, ArgError>;
+  onRest: Callback<Array<string>, State, ArgError>;
 };
 
-export type ParseResult<State, CustomFlagError, CustomError> =
+export type ParseResult<State, FlagError, ArgError> =
   | { tag: "Ok"; state: State }
-  | { tag: "FlagError"; error: FlagError<CustomFlagError> }
-  | { tag: "CustomError"; error: CustomError };
+  | { tag: "FlagError"; error: FlagErrorWrapper<FlagError> }
+  | { tag: "ArgError"; error: ArgError };
 
 const optionRegex = /^(--?)([^-=][^=]*)(?:=([^]*))?$/;
 
-export default function parse<
-  State,
-  CustomFlagError = never,
-  CustomError = never
->(
+export default function parse<State, FlagError = never, ArgError = never>(
   argv: Array<string>,
-  options: Options<State, CustomFlagError, CustomError>
-): ParseResult<State, CustomFlagError, CustomError> {
+  options: Options<State, FlagError, ArgError>
+): ParseResult<State, FlagError, ArgError> {
   let state = options.initialState;
   let rules = options.flagRulesFromState(state);
 
@@ -76,23 +72,23 @@ export default function parse<
 
     const handleRemainingAsRest = (): ParseResult<
       State,
-      CustomFlagError,
-      CustomError
+      FlagError,
+      ArgError
     > => {
       const result = options.onRest(state, argv.slice(index + 1));
       switch (result.tag) {
         case "Ok":
           return { tag: "Ok", state: result.state };
         case "Error":
-          return { tag: "CustomError", error: result.error };
+          return { tag: "ArgError", error: result.error };
       }
     };
 
     const handleFlagCallbackResult = (
       dash: Dash,
       name: string,
-      result: ReturnType<Callback<unknown, State, CustomFlagError>>
-    ): ParseResult<State, CustomFlagError, CustomError> | undefined => {
+      result: ReturnType<Callback<unknown, State, FlagError>>
+    ): ParseResult<State, FlagError, ArgError> | undefined => {
       switch (result.tag) {
         case "Ok":
           ({ state } = result);
@@ -114,8 +110,8 @@ export default function parse<
     };
 
     const handleCallbackResult = (
-      result: ReturnType<Callback<unknown, State, CustomError>>
-    ): ParseResult<State, CustomFlagError, CustomError> | undefined => {
+      result: ReturnType<Callback<unknown, State, ArgError>>
+    ): ParseResult<State, FlagError, ArgError> | undefined => {
       switch (result.tag) {
         case "Ok":
           ({ state } = result);
@@ -125,7 +121,7 @@ export default function parse<
             : undefined;
         case "Error":
           return {
-            tag: "CustomError",
+            tag: "ArgError",
             error: result.error,
           };
       }

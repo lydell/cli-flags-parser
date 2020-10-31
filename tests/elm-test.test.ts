@@ -1,4 +1,4 @@
-import parse, { FlagError, FlagRule } from "../index";
+import parse, { FlagErrorWrapper, FlagRule } from "../index";
 
 type IntermediateCommand = "help" | "init" | "install" | "make" | "test";
 
@@ -332,12 +332,12 @@ function elmTest(argv: Array<string>): Command | string {
       return `${error.dash}${error.name}: ${flagErrorToString(error)}`;
     }
 
-    case "CustomError":
+    case "ArgError":
       return result.error;
   }
 }
 
-function flagErrorToString(error: FlagError<string>): string {
+function flagErrorToString(error: FlagErrorWrapper<string>): string {
   switch (error.tag) {
     case "UnknownFlag":
       return allRules.some(([, name]) => name === error.name)
