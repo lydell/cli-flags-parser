@@ -58,7 +58,6 @@ function parseReport(string: string): Result<string, Report> {
 const helpRule = (options: Options): FlagRule<CustomError> => [
   "--",
   "help",
-  "switch",
   () => {
     options.help = true;
   },
@@ -67,7 +66,6 @@ const helpRule = (options: Options): FlagRule<CustomError> => [
 const versionRule = (options: Options): FlagRule<CustomError> => [
   "--",
   "version",
-  "switch",
   () => {
     options.version = true;
   },
@@ -76,7 +74,7 @@ const versionRule = (options: Options): FlagRule<CustomError> => [
 const compilerRule = (options: Options): FlagRule<CustomError> => [
   "--",
   "compiler",
-  "value",
+  "=",
   (value: string) => {
     options.compiler = value;
   },

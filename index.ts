@@ -1,8 +1,8 @@
 export type Dash = "-" | "--";
 
 export type FlagRule<State, CustomError> =
-  | [Dash, string, "switch", Callback<void, State, CustomError>]
-  | [Dash, string, "value", Callback<string, State, CustomError>];
+  | [Dash, string, Callback<void, State, CustomError>]
+  | [Dash, string, "=", Callback<string, State, CustomError>];
 
 export type FlagError =
   | {
@@ -127,70 +127,63 @@ export default function parse<State, CustomError>(
         for (const rule of rules) {
           const [dash, name] = rule;
           if (dash === flagDash && name === flagName) {
-            switch (rule[2]) {
-              case "switch": {
-                switch (flagValue.tag) {
-                  case "ViaEquals":
-                    return {
-                      tag: "FlagError",
-                      error: {
-                        tag: "ValueSuppliedToSwitch",
-                        dash,
-                        name,
-                        value: flagValue.value,
-                      },
-                    };
-                  case "ViaNextArg":
-                  case "NextArgMissing":
-                  case "NotLastInGroup": {
-                    const callback = rule[3];
-                    const result = handleCallbackResult(
-                      callback(undefined, state)
-                    );
-                    if (result !== undefined) {
-                      return result;
-                    }
-                    break;
+            if (rule.length === 3) {
+              switch (flagValue.tag) {
+                case "ViaEquals":
+                  return {
+                    tag: "FlagError",
+                    error: {
+                      tag: "ValueSuppliedToSwitch",
+                      dash,
+                      name,
+                      value: flagValue.value,
+                    },
+                  };
+                case "ViaNextArg":
+                case "NextArgMissing":
+                case "NotLastInGroup": {
+                  const callback = rule[2];
+                  const result = handleCallbackResult(
+                    callback(undefined, state)
+                  );
+                  if (result !== undefined) {
+                    return result;
                   }
                 }
-                break;
               }
-
-              case "value": {
-                const callback = rule[3];
-                switch (flagValue.tag) {
-                  // @ts-expect-error: Fallthrough intended.
-                  case "ViaNextArg":
-                    index++;
-                  case "ViaEquals": {
-                    const result = handleCallbackResult(
-                      callback(flagValue.value, state)
-                    );
-                    if (result !== undefined) {
-                      return result;
-                    }
-                    break;
+            } else {
+              const callback = rule[3];
+              switch (flagValue.tag) {
+                // @ts-expect-error: Fallthrough intended.
+                case "ViaNextArg":
+                  index++;
+                case "ViaEquals": {
+                  const result = handleCallbackResult(
+                    callback(flagValue.value, state)
+                  );
+                  if (result !== undefined) {
+                    return result;
                   }
-                  case "NotLastInGroup":
-                    return {
-                      tag: "FlagError",
-                      error: {
-                        tag: "ValueFlagNotLastInGroup",
-                        dash: "-",
-                        name,
-                      },
-                    };
-                  case "NextArgMissing":
-                    return {
-                      tag: "FlagError",
-                      error: {
-                        tag: "MissingValue",
-                        dash,
-                        name,
-                      },
-                    };
+                  break;
                 }
-                break;
+                case "NotLastInGroup":
+                  return {
+                    tag: "FlagError",
+                    error: {
+                      tag: "ValueFlagNotLastInGroup",
+                      dash: "-",
+                      name,
+                    },
+                  };
+                case "NextArgMissing":
+                  return {
+                    tag: "FlagError",
+                    error: {
+                      tag: "MissingValue",
+                      dash,
+                      name,
+                    },
+                  };
               }
             }
             foundMatch = true;
