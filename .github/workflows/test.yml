@@ -1,4 +1,4 @@
-name: CI
+name: Test
 
 on:
   push:
@@ -32,5 +32,5 @@ jobs:
         if: steps.cache-node_modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: npm test
-        run: npm test
+      - name: Jest
+        run: npx --no-install jest --coverage
