@@ -337,7 +337,7 @@ function flagErrorToString(error: FlagErrorWrapper<string>): string {
     case "MissingFlagValue":
       return `This flag requires ${error.valueDescription}`;
     case "ValueFlagNotLastInGroup":
-      return `This flag requires ${error.valueDescription} and therefore must be last in the group`;
+      return `This flag requires ${error.valueDescription}. Only the last flag in a group can have a value.`;
     case "UnexpectedFlagValue":
       return `This flag takes no value but was given one: ${error.value}`;
     case "Custom":
@@ -406,5 +406,63 @@ describe("elm-test", () => {
     expect(elmTest(["make", "--seed=123"])).toMatchInlineSnapshot(
       `"--seed: Invalid flag in this context"`
     );
+  });
+
+  test("--seed without value", () => {
+    expect(elmTest(["--seed"])).toMatchInlineSnapshot(
+      `"--seed: This flag requires a number"`
+    );
+  });
+
+  test("--seed with bad value", () => {
+    expect(elmTest(["--seed", "0xaf"])).toMatchInlineSnapshot(
+      `"--seed: Expected one or more digits, but got: 0xaf"`
+    );
+  });
+
+  test("--watch", () => {
+    expect(elmTest(["--watch", "src"])).toMatchInlineSnapshot(`
+      Object {
+        "compiler": undefined,
+        "fuzz": 100,
+        "report": "console",
+        "seed": 1337,
+        "tag": "test",
+        "testFileGlobs": Array [
+          "src",
+        ],
+        "watch": true,
+      }
+    `);
+  });
+
+  test("--watch with value", () => {
+    expect(elmTest(["--watch=src"])).toMatchInlineSnapshot(
+      `"--watch: This flag takes no value but was given one: src"`
+    );
+  });
+
+  test("init", () => {
+    expect(elmTest(["init"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "init",
+      }
+    `);
+  });
+
+  test("run tests in init/ folder", () => {
+    expect(elmTest(["--", "init"])).toMatchInlineSnapshot(`
+      Object {
+        "compiler": undefined,
+        "fuzz": 100,
+        "report": "console",
+        "seed": 1337,
+        "tag": "test",
+        "testFileGlobs": Array [
+          "init",
+        ],
+        "watch": false,
+      }
+    `);
   });
 });

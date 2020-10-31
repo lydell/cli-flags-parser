@@ -205,3 +205,41 @@ test("handle remaining as rest", () => {
     }
   `);
 });
+
+test("arg error", () => {
+  const result = parse(["arg"], {
+    initialState: {},
+    flagRulesFromState: () => [],
+    onArg: () => ({
+      tag: "Error",
+      error: "Arg error",
+    }),
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": "Arg error",
+      "tag": "ArgError",
+    }
+  `);
+});
+
+test("rest error", () => {
+  const result = parse(["--"], {
+    initialState: {},
+    flagRulesFromState: () => [],
+    onArg: fail,
+    onRest: () => ({
+      tag: "Error",
+      error: "Rest error",
+    }),
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": "Rest error",
+      "tag": "ArgError",
+    }
+  `);
+});
