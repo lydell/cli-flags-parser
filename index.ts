@@ -34,8 +34,8 @@ type FlagValue =
   | { tag: "NextArgMissing" };
 
 export type Callback<Arg, State, CustomError> = (
-  arg: Arg,
-  state: State
+  state: State,
+  arg: Arg
 ) =>
   | { tag: "Ok"; state: State; handleRemainingAsRest?: boolean }
   | { tag: "Error"; error: CustomError };
@@ -65,7 +65,7 @@ export default function parse<State, CustomError>(
     const arg = argv[index];
 
     const handleRemainingAsRest = (): ParseResult<State, CustomError> => {
-      const result = options.onRest(argv.slice(index + 1), state);
+      const result = options.onRest(state, argv.slice(index + 1));
       switch (result.tag) {
         case "Ok":
           return { tag: "Ok", state: result.state };
@@ -144,7 +144,7 @@ export default function parse<State, CustomError>(
                 case "NotLastInGroup": {
                   const callback = rule[2];
                   const result = handleCallbackResult(
-                    callback(undefined, state)
+                    callback(state, undefined)
                   );
                   if (result !== undefined) {
                     return result;
@@ -159,7 +159,7 @@ export default function parse<State, CustomError>(
                   index++;
                 case "ViaEquals": {
                   const result = handleCallbackResult(
-                    callback(flagValue.value, state)
+                    callback(state, flagValue.value)
                   );
                   if (result !== undefined) {
                     return result;
@@ -203,7 +203,7 @@ export default function parse<State, CustomError>(
         }
       }
     } else {
-      const result = handleCallbackResult(options.onArg(arg, state));
+      const result = handleCallbackResult(options.onArg(state, arg));
       if (result !== undefined) {
         return result;
       }

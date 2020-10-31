@@ -1,70 +1,88 @@
 import parse from "../index";
 
 test("empty", () => {
-  const args: Array<string> = [];
-  const rest: Array<string> = [];
+  type State = {
+    args: Array<string>;
+    rest: Array<string>;
+  };
 
-  const result = parse([], {
-    initialFlagRules: [],
-    onArg: (arg) => {
-      args.push(arg);
+  const result = parse<State, unknown>([], {
+    initialState: {
+      args: [],
+      rest: [],
     },
-    onRest: (rest2) => {
-      rest.push(...rest2);
-    },
+    flagRulesFromState: () => [],
+    onArg: (state, arg) => ({
+      tag: "Ok",
+      state: { ...state, args: state.args.concat(arg) },
+    }),
+    onRest: (state, rest) => ({
+      tag: "Ok",
+      state: { ...state, rest: state.rest.concat(rest) },
+    }),
   });
 
   expect(result).toMatchInlineSnapshot(`
     Object {
+      "state": Object {
+        "args": Array [],
+        "rest": Array [],
+      },
       "tag": "Ok",
     }
   `);
-
-  expect(args).toMatchInlineSnapshot(`Array []`);
-
-  expect(rest).toMatchInlineSnapshot(`Array []`);
 });
 
 test("value flag not last in group", () => {
-  const options = {
-    a: 0,
-    b: 0,
-    c: 0,
-    abc: 0,
+  type State = {
+    a: number;
+    b: number;
+    c: number;
+    abc: number;
   };
-  const result = parse(["--abc=10", "-abc=20"], {
-    initialFlagRules: [
+
+  const result = parse<State, unknown>(["--abc=10", "-abc=20"], {
+    initialState: {
+      a: 0,
+      b: 0,
+      c: 0,
+      abc: 0,
+    },
+    flagRulesFromState: () => [
       [
         "-",
         "a",
-        "switch",
-        () => {
-          options.a++;
-        },
+        (state: State) => ({
+          tag: "Ok" as const,
+          state: { ...state, a: state.a + 1 },
+        }),
       ],
       [
         "-",
         "b",
-        "value",
-        (v: string) => {
-          options.b += Number(v);
-        },
+        "=",
+        (state: State, v: string) => ({
+          tag: "Ok" as const,
+          state: { ...state, b: state.b + Number(v) },
+        }),
       ],
       [
         "-",
         "c",
-        "value",
-        (v: string) => {
-          options.c += Number(v);
-        },
+        "=",
+        (state: State, v: string) => ({
+          tag: "Ok" as const,
+          state: { ...state, c: state.c + Number(v) },
+        }),
       ],
       [
         "--",
         "abc",
-        "value",
-        (v: string) => {
-          options.abc += Number(v);
-        },
+        "=",
+        (state: State, v: string) => ({
+          tag: "Ok" as const,
+          state: { ...state, abc: state.abc + Number(v) },
+        }),
       ],
     ],
     onArg: fail,
@@ -81,57 +99,57 @@ test("value flag not last in group", () => {
       "tag": "FlagError",
     }
   `);
-
-  expect(options).toMatchInlineSnapshot(`
-    Object {
-      "a": 1,
-      "abc": 10,
-      "b": 0,
-      "c": 0,
-    }
-  `);
 });
 
 test("value flag IS last in group", () => {
-  const options = {
-    a: 0,
-    b: 0,
-    c: 0,
-    abc: 0,
+  type State = {
+    a: number;
+    b: number;
+    c: number;
+    abc: number;
   };
-  const result = parse(["--abc=10", "-abc=100"], {
-    initialFlagRules: [
+
+  const result = parse<State, unknown>(["--abc=10", "-abc=20"], {
+    initialState: {
+      a: 0,
+      b: 0,
+      c: 0,
+      abc: 0,
+    },
+    flagRulesFromState: () => [
       [
         "-",
         "a",
-        "switch",
-        () => {
-          options.a++;
-        },
+        (state: State) => ({
+          tag: "Ok" as const,
+          state: { ...state, a: state.a + 1 },
+        }),
       ],
       [
         "-",
         "b",
-        "switch",
-        () => {
-          options.b++;
-        },
+        (state: State) => ({
+          tag: "Ok" as const,
+          state: { ...state, b: state.b + 1 },
+        }),
       ],
       [
         "-",
         "c",
-        "value",
-        (v: string) => {
-          options.c += Number(v);
-        },
+        "=",
+        (state: State, v: string) => ({
+          tag: "Ok" as const,
+          state: { ...state, c: state.c + Number(v) },
+        }),
       ],
       [
         "--",
         "abc",
-        "value",
-        (v: string) => {
-          options.abc += Number(v);
-        },
+        "=",
+        (state: State, v: string) => ({
+          tag: "Ok" as const,
+          state: { ...state, abc: state.abc + Number(v) },
+        }),
       ],
     ],
     onArg: fail,
@@ -140,62 +158,59 @@ test("value flag IS last in group", () => {
 
   expect(result).toMatchInlineSnapshot(`
     Object {
+      "state": Object {
+        "a": 1,
+        "abc": 10,
+        "b": 1,
+        "c": 20,
+      },
       "tag": "Ok",
-    }
-  `);
-
-  expect(options).toMatchInlineSnapshot(`
-    Object {
-      "a": 1,
-      "abc": 10,
-      "b": 1,
-      "c": 100,
     }
   `);
 });
 
 test("handle remaining as rest", () => {
-  const args: Array<string> = [];
-  const options = {
-    noInstall: 0,
+  type State = {
+    args: Array<string>;
+    noInstall: number;
   };
 
-  const result = parse(["--no-install", "jest", "--coverage"], {
-    initialFlagRules: [
+  const result = parse<State, unknown>(["--no-install", "jest", "--coverage"], {
+    initialState: {
+      args: [],
+      noInstall: 0,
+    },
+    flagRulesFromState: () => [
       [
         "--",
         "no-install",
-        "switch",
-        () => {
-          options.noInstall++;
-        },
+        (state: State) => ({
+          tag: "Ok" as const,
+          state: { ...state, noInstall: state.noInstall + 1 },
+        }),
       ],
     ],
-    onArg: (arg) => {
-      args.push(arg);
-      return { tag: "HandleRemainingAsRest" };
-    },
-    onRest: (rest) => {
-      args.push(...rest);
-    },
+    onArg: (state: State, arg: string) => ({
+      tag: "Ok",
+      state: { ...state, args: state.args.concat(arg) },
+      handleRemainingAsRest: true,
+    }),
+    onRest: (state: State, rest: Array<string>) => ({
+      tag: "Ok",
+      state: { ...state, args: state.args.concat(rest) },
+    }),
   });
 
   expect(result).toMatchInlineSnapshot(`
     Object {
+      "state": Object {
+        "args": Array [
+          "jest",
+          "--coverage",
+        ],
+        "noInstall": 1,
+      },
       "tag": "Ok",
     }
-  `);
-
-  expect(options).toMatchInlineSnapshot(`
-    Object {
-      "noInstall": 1,
-    }
-  `);
-
-  expect(args).toMatchInlineSnapshot(`
-    Array [
-      "jest",
-      "--coverage",
-    ]
   `);
 });

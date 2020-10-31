@@ -29,7 +29,9 @@ type Command =
 
 type CustomError = string;
 
-type Options = {
+type State = {
+  command: IntermediateCommand;
+  args: Array<string>;
   compiler: string | undefined;
   report: Report;
   fuzz: number;
@@ -39,57 +41,40 @@ type Options = {
   watch: boolean;
 };
 
-type Report = "console" | "json" | "junit";
-
-function parseReport(string: string): Result<string, Report> {
-  switch (string) {
-    case "console":
-    case "json":
-    case "junit":
-      return { tag: "Ok", value: string };
-    default:
-      return {
-        tag: "Error",
-        error: `Expected console, json or junit, but got: ${string}`,
-      };
-  }
-}
-
-const helpRule = (options: Options): FlagRule<CustomError> => [
+const helpRule: FlagRule<State, CustomError> = [
   "--",
   "help",
-  () => {
-    options.help = true;
-  },
+  (state) => ({ tag: "Ok", state: { ...state, help: true } }),
 ];
 
-const versionRule = (options: Options): FlagRule<CustomError> => [
+const versionRule: FlagRule<State, CustomError> = [
   "--",
   "version",
-  () => {
-    options.version = true;
-  },
+  (state) => ({ tag: "Ok", state: { ...state, version: true } }),
 ];
 
-const compilerRule = (options: Options): FlagRule<CustomError> => [
+const compilerRule: FlagRule<State, CustomError> = [
   "--",
   "compiler",
   "=",
-  (value: string) => {
-    options.compiler = value;
-  },
+  (state: State, value: string) => ({
+    tag: "Ok" as const,
+    state: { ...state, compiler: value },
+  }),
 ];
 
-const reportRule = (options: Options): FlagRule<CustomError> => [
+const reportRule: FlagRule<State, CustomError> = [
   "--",
   "report",
-  "value",
-  (value: string) => {
+  "=",
+  (state: State, value: string) => {
     const result = parseReport(value);
     switch (result.tag) {
       case "Ok":
-        options.report = result.value;
-        return undefined;
+        return {
+          tag: "Ok" as const,
+          state: { ...state, report: result.value },
+        };
       case "Error":
         return {
           tag: "Error" as const,
@@ -99,16 +84,18 @@ const reportRule = (options: Options): FlagRule<CustomError> => [
   },
 ];
 
-const fuzzRule = (options: Options): FlagRule<CustomError> => [
+const fuzzRule: FlagRule<State, CustomError> = [
   "--",
   "fuzz",
-  "value",
-  (value: string) => {
+  "=",
+  (state: State, value: string) => {
     const result = parsePositiveInteger(value);
     switch (result.tag) {
       case "Ok":
-        options.fuzz = result.value;
-        return undefined;
+        return {
+          tag: "Ok" as const,
+          state: { ...state, fuzz: result.value },
+        };
       case "Error":
         return {
           tag: "Error" as const,
@@ -118,16 +105,18 @@ const fuzzRule = (options: Options): FlagRule<CustomError> => [
   },
 ];
 
-const seedRule = (options: Options): FlagRule<CustomError> => [
+const seedRule: FlagRule<State, CustomError> = [
   "--",
   "seed",
-  "value",
-  (value: string) => {
+  "=",
+  (state: State, value: string) => {
     const result = parsePositiveInteger(value);
     switch (result.tag) {
       case "Ok":
-        options.seed = result.value;
-        return undefined;
+        return {
+          tag: "Ok" as const,
+          state: { ...state, seed: result.value },
+        };
       case "Error":
         return {
           tag: "Error" as const,
@@ -137,13 +126,10 @@ const seedRule = (options: Options): FlagRule<CustomError> => [
   },
 ];
 
-const watchRule = (options: Options): FlagRule<CustomError> => [
+const watchRule: FlagRule<State, CustomError> = [
   "--",
   "watch",
-  "switch",
-  () => {
-    options.watch = true;
-  },
+  (state) => ({ tag: "Ok", state: { ...state, watch: true } }),
 ];
 
 const allRules = [
@@ -175,89 +161,68 @@ function parsePositiveInteger(string: string): Result<string, number> {
     : { tag: "Ok", value: number };
 }
 
-function getRulesFromCommand(
-  command: IntermediateCommand,
-  options: Options
-): Array<FlagRule<CustomError>> {
-  const common = [
-    helpRule(options),
-    versionRule(options),
-    compilerRule(options),
-  ];
-  switch (command) {
-    case "none":
-      return common;
+type Report = "console" | "json" | "junit";
 
-    case "init":
-      return common;
-
-    case "install":
-      return common;
-
-    case "make":
-      return [...common, reportRule(options)];
-
-    case "test":
-      return [
-        ...common,
-        reportRule(options),
-        fuzzRule(options),
-        seedRule(options),
-        watchRule(options),
-      ];
+function parseReport(string: string): Result<string, Report> {
+  switch (string) {
+    case "console":
+    case "json":
+    case "junit":
+      return { tag: "Ok", value: string };
+    default:
+      return {
+        tag: "Error",
+        error: `Expected console, json or junit, but got: ${string}`,
+      };
   }
 }
 
-function parseCommand(
-  command: IntermediateCommand,
-  args: Array<string>,
-  options: Options
-): Result<string, Command> {
-  if (options.help || (command === "none" && args[0] === "help")) {
+function parseCommand(state: State): Result<string, Command> {
+  if (state.help || (state.command === "test" && state.args[0] === "help")) {
     return { tag: "Ok", value: { tag: "help" } };
   }
 
-  if (options.version) {
+  if (state.version) {
     return { tag: "Ok", value: { tag: "version" } };
   }
 
-  const got = `${args.length}: ${args.join(" ")}`;
+  const got = `${state.args.length}: ${state.args.join(" ")}`;
 
-  switch (command) {
+  switch (state.command) {
     case "none":
     case "test":
       return {
         tag: "Ok",
         value: {
           tag: "test",
-          testFileGlobs: args,
-          fuzz: options.fuzz,
-          seed: options.seed,
-          report: options.report,
-          watch: options.watch,
-          compiler: options.compiler,
+          testFileGlobs: state.args,
+          fuzz: state.fuzz,
+          seed: state.seed,
+          report: state.report,
+          watch: state.watch,
+          compiler: state.compiler,
         },
       };
 
     case "init":
-      return args.length > 0
+      return state.args.length > 0
         ? { tag: "Error", error: `init takes no arguments, but got ${got}` }
         : { tag: "Ok", value: { tag: "init" } };
 
     case "install":
-      return args.length === 0
+      return state.args.length === 0
         ? {
             tag: "Error",
             error:
               "You need to provide the package you want to install. For example: elm-test install elm/regex",
           }
-        : args.length === 1
+        : state.args.length === 1
         ? {
             tag: "Ok",
             value: {
               tag: "install",
-              packageName: args[0],
-              compiler: options.compiler,
+              packageName: state.args[0],
+              compiler: state.compiler,
             },
           }
         : {
@@ -270,16 +235,39 @@ function parseCommand(
         tag: "Ok",
         value: {
           tag: "make",
-          testFileGlobs: args,
-          report: options.report,
-          compiler: options.compiler,
+          testFileGlobs: state.args,
+          report: state.report,
+          compiler: state.compiler,
         },
       };
   }
 }
 
+function flagRulesFromState(state: State): Array<FlagRule<State, CustomError>> {
+  const common = [helpRule, versionRule, compilerRule];
+
+  switch (state.command) {
+    case "none":
+      return common;
+
+    case "init":
+      return common;
+
+    case "install":
+      return common;
+
+    case "make":
+      return [...common, reportRule];
+
+    case "test":
+      return [...common, reportRule, fuzzRule, seedRule, watchRule];
+  }
+}
+
 function elmTest(argv: Array<string>): Command | string {
-  const options: Options = {
+  const initialState: State = {
+    command: "none",
+    args: [],
     compiler: undefined,
     report: "console",
     fuzz: 100,
@@ -288,41 +276,46 @@ function elmTest(argv: Array<string>): Command | string {
     version: false,
     watch: false,
   };
-  const allKnownOptionNames: Array<string> = allRules.map(
-    (rule) => rule(options)[1]
-  );
-
-  let command: IntermediateCommand = "none";
-  const args: Array<string> = [];
 
   const result = parse(argv, {
-    initialFlagRules: getRulesFromCommand(command, options),
-    onArg: (arg) => {
-      if (command === "none") {
+    initialState,
+    flagRulesFromState,
+    onArg: (state, arg) => {
+      if (state.command === "none") {
         switch (arg) {
           case "init":
           case "install":
           case "make":
-            command = arg;
-            break;
+            return {
+              tag: "Ok",
+              state: { ...state, command: arg },
+            };
           default:
-            command = "test";
-            args.push(arg);
+            return {
+              tag: "Ok",
+              state: {
+                ...state,
+                command: "test" as const,
+                args: state.args.concat(arg),
+              },
+            };
         }
+      } else {
+        return {
+          tag: "Ok",
+          state: { ...state, args: state.args.concat(arg) },
+        };
       }
-      return {
-        tag: "NewFlagRules",
-        rules: getRulesFromCommand(command, options),
-      };
     },
-    onRest: (rest) => {
-      args.push(...rest);
-    },
+    onRest: (state, rest) => ({
+      tag: "Ok",
+      state: { ...state, args: state.args.concat(rest) },
+    }),
   });
 
   switch (result.tag) {
     case "Ok": {
-      const result2 = parseCommand(command, args, options);
+      const result2 = parseCommand(result.state);
       switch (result2.tag) {
         case "Ok":
           return result2.value;
@@ -334,7 +327,7 @@ function elmTest(argv: Array<string>): Command | string {
     case "FlagError":
       switch (result.error.tag) {
         case "UnknownFlag":
-          return allKnownOptionNames.includes(result.error.name)
+          return allRules.some(([, name]) => name === result.error.name)
             ? `Invalid flag in this context: ${result.error.dash}${result.error.name}`
             : `Unknown flag: ${result.error.dash}${result.error.name}`;
         case "MissingValue":
