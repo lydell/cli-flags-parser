@@ -1,10 +1,10 @@
 export type Dash = "-" | "--";
 
-export type FlagRule<State, CustomError> =
-  | [Dash, string, Callback<void, State, CustomError>]
-  | [Dash, string, "=", Callback<string, State, CustomError>];
+export type FlagRule<State, CustomFlagError> =
+  | [Dash, string, Callback<void, State, CustomFlagError>]
+  | [Dash, string, "=", Callback<string, State, CustomFlagError>];
 
-export type FlagError =
+export type FlagError<CustomFlagError> =
   | {
       tag: "UnexpectedFlagValue";
       dash: Dash;
@@ -25,6 +25,12 @@ export type FlagError =
       tag: "UnknownFlag";
       dash: Dash;
       name: string;
+    }
+  | {
+      tag: "Custom";
+      dash: Dash;
+      name: string;
+      error: CustomFlagError;
     };
 
 type FlagValue =
@@ -40,31 +46,39 @@ type Callback<Arg, State, CustomError> = (
   | { tag: "Ok"; state: State; handleRemainingAsRest?: boolean }
   | { tag: "Error"; error: CustomError };
 
-export type Options<State, CustomError> = {
+export type Options<State, CustomFlagError, CustomError> = {
   initialState: State;
-  flagRulesFromState: (state: State) => Array<FlagRule<State, CustomError>>;
+  flagRulesFromState: (state: State) => Array<FlagRule<State, CustomFlagError>>;
   onArg: Callback<string, State, CustomError>;
   onRest: Callback<Array<string>, State, CustomError>;
 };
 
-export type ParseResult<State, CustomError> =
+export type ParseResult<State, CustomFlagError, CustomError> =
   | { tag: "Ok"; state: State }
-  | { tag: "FlagError"; error: FlagError }
+  | { tag: "FlagError"; error: FlagError<CustomFlagError> }
   | { tag: "CustomError"; error: CustomError };
 
 const optionRegex = /^(--?)([^-=][^=]*)(?:=([^]*))?$/;
 
-export default function parse<State, CustomError>(
+export default function parse<
+  State,
+  CustomFlagError = never,
+  CustomError = never
+>(
   argv: Array<string>,
-  options: Options<State, CustomError>
-): ParseResult<State, CustomError> {
+  options: Options<State, CustomFlagError, CustomError>
+): ParseResult<State, CustomFlagError, CustomError> {
   let state = options.initialState;
   let rules = options.flagRulesFromState(state);
 
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
 
-    const handleRemainingAsRest = (): ParseResult<State, CustomError> => {
+    const handleRemainingAsRest = (): ParseResult<
+      State,
+      CustomFlagError,
+      CustomError
+    > => {
       const result = options.onRest(state, argv.slice(index + 1));
       switch (result.tag) {
         case "Ok":
@@ -74,9 +88,34 @@ export default function parse<State, CustomError>(
       }
     };
 
+    const handleFlagCallbackResult = (
+      dash: Dash,
+      name: string,
+      result: ReturnType<Callback<unknown, State, CustomFlagError>>
+    ): ParseResult<State, CustomFlagError, CustomError> | undefined => {
+      switch (result.tag) {
+        case "Ok":
+          ({ state } = result);
+          rules = options.flagRulesFromState(state);
+          return result.handleRemainingAsRest === true
+            ? handleRemainingAsRest()
+            : undefined;
+        case "Error":
+          return {
+            tag: "FlagError",
+            error: {
+              tag: "Custom",
+              dash,
+              name,
+              error: result.error,
+            },
+          };
+      }
+    };
+
     const handleCallbackResult = (
       result: ReturnType<Callback<unknown, State, CustomError>>
-    ): ParseResult<State, CustomError> | undefined => {
+    ): ParseResult<State, CustomFlagError, CustomError> | undefined => {
       switch (result.tag) {
         case "Ok":
           ({ state } = result);
@@ -143,7 +182,9 @@ export default function parse<State, CustomError>(
                 case "NextArgMissing":
                 case "NotLastInGroup": {
                   const callback = rule[2];
-                  const result = handleCallbackResult(
+                  const result = handleFlagCallbackResult(
+                    dash,
+                    name,
                     callback(state, undefined)
                   );
                   if (result !== undefined) {
@@ -158,7 +199,9 @@ export default function parse<State, CustomError>(
                 case "ViaNextArg":
                   index++;
                 case "ViaEquals": {
-                  const result = handleCallbackResult(
+                  const result = handleFlagCallbackResult(
+                    dash,
+                    name,
                     callback(state, flagValue.value)
                   );
                   if (result !== undefined) {

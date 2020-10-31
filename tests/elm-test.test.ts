@@ -1,4 +1,4 @@
-import parse, { FlagRule } from "../index";
+import parse, { FlagError, FlagRule } from "../index";
 
 type IntermediateCommand = "help" | "init" | "install" | "make" | "test";
 
@@ -27,8 +27,6 @@ type Command =
       compiler: string | undefined;
     };
 
-type CustomError = string;
-
 type State = {
   command: IntermediateCommand;
   args: Array<string>;
@@ -41,7 +39,9 @@ type State = {
   watch: boolean;
 };
 
-const helpRule: FlagRule<State, CustomError> = [
+type Rule = FlagRule<State, string>;
+
+const helpRule: Rule = [
   "--",
   "help",
   (state) => ({
@@ -51,13 +51,13 @@ const helpRule: FlagRule<State, CustomError> = [
   }),
 ];
 
-const versionRule: FlagRule<State, CustomError> = [
+const versionRule: Rule = [
   "--",
   "version",
   (state) => ({ tag: "Ok", state: { ...state, version: true } }),
 ];
 
-const compilerRule: FlagRule<State, CustomError> = [
+const compilerRule: Rule = [
   "--",
   "compiler",
   "=",
@@ -67,7 +67,7 @@ const compilerRule: FlagRule<State, CustomError> = [
   }),
 ];
 
-const reportRule: FlagRule<State, CustomError> = [
+const reportRule: Rule = [
   "--",
   "report",
   "=",
@@ -80,15 +80,12 @@ const reportRule: FlagRule<State, CustomError> = [
           state: { ...state, report: result.value },
         };
       case "Error":
-        return {
-          tag: "Error" as const,
-          error: `--report requires a known reporter: ${result.error}`,
-        };
+        return result;
     }
   },
 ];
 
-const fuzzRule: FlagRule<State, CustomError> = [
+const fuzzRule: Rule = [
   "--",
   "fuzz",
   "=",
@@ -101,15 +98,12 @@ const fuzzRule: FlagRule<State, CustomError> = [
           state: { ...state, fuzz: result.value },
         };
       case "Error":
-        return {
-          tag: "Error" as const,
-          error: `--fuzz requires a number: ${result.error}`,
-        };
+        return result;
     }
   },
 ];
 
-const seedRule: FlagRule<State, CustomError> = [
+const seedRule: Rule = [
   "--",
   "seed",
   "=",
@@ -122,15 +116,12 @@ const seedRule: FlagRule<State, CustomError> = [
           state: { ...state, seed: result.value },
         };
       case "Error":
-        return {
-          tag: "Error" as const,
-          error: `--seed requires a number: ${result.error}`,
-        };
+        return result;
     }
   },
 ];
 
-const watchRule: FlagRule<State, CustomError> = [
+const watchRule: Rule = [
   "--",
   "watch",
   (state) => ({ tag: "Ok", state: { ...state, watch: true } }),
@@ -249,7 +240,7 @@ function parseCommand(state: State): Result<string, Command> {
   }
 }
 
-function flagRulesFromState(state: State): Array<FlagRule<State, CustomError>> {
+function flagRulesFromState(state: State): Array<Rule> {
   const common = [helpRule, versionRule, compilerRule];
 
   switch (state.command) {
@@ -336,22 +327,30 @@ function elmTest(argv: Array<string>): Command | string {
       }
     }
 
-    case "FlagError":
-      switch (result.error.tag) {
-        case "UnknownFlag":
-          return allRules.some(([, name]) => name === result.error.name)
-            ? `Invalid flag in this context: ${result.error.dash}${result.error.name}`
-            : `Unknown flag: ${result.error.dash}${result.error.name}`;
-        case "MissingFlagValue":
-          return `This flag requires a value: ${result.error.dash}${result.error.name}`;
-        case "ValueFlagNotLastInGroup":
-          return `This flag requires a value and must be last in the group: ${result.error.dash}${result.error.name}`;
-        case "UnexpectedFlagValue":
-          return `This flag takes no value but was given one: ${result.error.dash}${result.error.name}=${result.error.value}`;
-      }
+    case "FlagError": {
+      const { error } = result;
+      return `${error.dash}${error.name}: ${flagErrorToString(error)}`;
+    }
 
     case "CustomError":
       return result.error;
+  }
+}
+
+function flagErrorToString(error: FlagError<string>): string {
+  switch (error.tag) {
+    case "UnknownFlag":
+      return allRules.some(([, name]) => name === error.name)
+        ? "Invalid flag in this context"
+        : "Unknown flag";
+    case "MissingFlagValue":
+      return "This flag requires a value";
+    case "ValueFlagNotLastInGroup":
+      return "This flag requires a value and therefore must be last in the group";
+    case "UnexpectedFlagValue":
+      return `This flag takes no value but was given one: ${error.value}`;
+    case "Custom":
+      return error.error;
   }
 }
 
@@ -390,7 +389,7 @@ describe("elm-test", () => {
 
   test("--seed with make", () => {
     expect(elmTest(["make", "--seed=123"])).toMatchInlineSnapshot(
-      `"Invalid flag in this context: --seed"`
+      `"--seed: Invalid flag in this context"`
     );
   });
 });

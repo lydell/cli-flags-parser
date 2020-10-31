@@ -6,7 +6,7 @@ test("empty", () => {
     rest: Array<string>;
   };
 
-  const result = parse<State, unknown>([], {
+  const result = parse<State>([], {
     initialState: {
       args: [],
       rest: [],
@@ -41,7 +41,7 @@ test("value flag not last in group", () => {
     abc: number;
   };
 
-  const result = parse<State, unknown>(["--abc=10", "-abc=20"], {
+  const result = parse<State>(["--abc=10", "-abc=20"], {
     initialState: {
       a: 0,
       b: 0,
@@ -109,7 +109,7 @@ test("value flag IS last in group", () => {
     abc: number;
   };
 
-  const result = parse<State, unknown>(["--abc=10", "-abc=20"], {
+  const result = parse<State>(["--abc=10", "-abc=20"], {
     initialState: {
       a: 0,
       b: 0,
@@ -175,7 +175,7 @@ test("handle remaining as rest", () => {
     noInstall: number;
   };
 
-  const result = parse<State, unknown>(["--no-install", "jest", "--coverage"], {
+  const result = parse<State>(["--no-install", "jest", "--coverage"], {
     initialState: {
       args: [],
       noInstall: 0,
