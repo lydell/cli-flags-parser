@@ -243,3 +243,19 @@ test("rest error", () => {
     }
   `);
 });
+
+test("a single dash should be an arg", () => {
+  const result = parse(["-"], {
+    initialState: "",
+    flagRulesFromState: () => [],
+    onArg: (arg) => ({ tag: "Ok", state: arg }),
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "state": "-",
+      "tag": "Ok",
+    }
+  `);
+});
