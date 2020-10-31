@@ -44,7 +44,11 @@ type State = {
 const helpRule: FlagRule<State, CustomError> = [
   "--",
   "help",
-  (state) => ({ tag: "Ok", state: { ...state, help: true } }),
+  (state) => ({
+    tag: "Ok",
+    state: { ...state, help: true },
+    handleRemainingAsRest: true,
+  }),
 ];
 
 const versionRule: FlagRule<State, CustomError> = [
@@ -362,6 +366,14 @@ describe("elm-test", () => {
 
   test("--help with command", () => {
     expect(elmTest(["install", "--help"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "help",
+      }
+    `);
+  });
+
+  test("--help with unknown flag (ignores the flag)", () => {
+    expect(elmTest(["--help", "--unknown"])).toMatchInlineSnapshot(`
       Object {
         "tag": "help",
       }
