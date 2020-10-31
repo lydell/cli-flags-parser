@@ -1,7 +1,9 @@
+export type NonEmptyArray<T> = [T, ...Array<T>];
+
 export type FlagRule<State, FlagError> =
-  | [name: string, callback: VoidCallback<State, FlagError>]
+  | [names: NonEmptyArray<string>, callback: VoidCallback<State, FlagError>]
   | [
-      name: string,
+      names: NonEmptyArray<string>,
       valueDescription: string,
       callback: ValueCallback<string, State, FlagError>
     ];
@@ -164,12 +166,12 @@ export default function parse<State, FlagError = never, ArgError = never>(
                 : { tag: "NotLastInGroup" },
             ]);
 
-      for (const [flagName, flagValue] of items) {
+      for (const [name, flagValue] of items) {
         let foundMatch = false;
 
         for (const rule of rules) {
-          const [name] = rule;
-          if (name === flagName) {
+          const [names] = rule;
+          if (names.includes(name)) {
             if (rule.length === 2) {
               switch (flagValue.tag) {
                 case "ViaEquals":
@@ -242,7 +244,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
             tag: "FlagError",
             error: {
               tag: "UnknownFlag",
-              name: flagName,
+              name,
             },
           };
         }
