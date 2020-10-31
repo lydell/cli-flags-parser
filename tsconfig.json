@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
+    "declaration": true,
     "forceConsistentCasingInFileNames": true,
     "importsNotUsedAsValues": "error",
     "isolatedModules": true,
@@ -20,6 +21,7 @@
   },
   "exclude": [
     "scripts",
-    "tests"
+    "tests",
+    "build"
   ]
 }

@@ -5,16 +5,7 @@ import * as path from "path";
 const DIR = path.dirname(__dirname);
 const BUILD = path.join(DIR, "build");
 
-const READ_MORE =
-  "**[➡️ Full readme](https://github.com/lydell/cli-flags)**";
-
-type Package = {
-  version: string;
-};
-
-const PKG = JSON.parse(
-  fs.readFileSync(path.join(DIR, "package-real.json"), "utf8")
-) as Package;
+const READ_MORE = "**[➡️ Full readme](https://github.com/lydell/cli-flags)**";
 
 type FileToCopy = {
   src: string;
@@ -25,7 +16,6 @@ type FileToCopy = {
 
 const FILES_TO_COPY: Array<FileToCopy> = [
   { src: "LICENSE" },
-  { src: "index.d.ts" },
   { src: "package-real.json", dest: "package.json" },
   {
     src: "README.md",
@@ -70,4 +60,3 @@ function adjustDefaultExport(content: string): string {
 }
 
 modifyFile(path.join(BUILD, "index.js"), adjustDefaultExport);
-

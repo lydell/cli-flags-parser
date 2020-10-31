@@ -15,7 +15,7 @@ const ignoreCoverage = {
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
-  coveragePathIgnorePatterns: ["/node_modules/", "/scripts/", "/tests/"],
+  collectCoverageFrom: ["index.ts"],
   coverageThreshold: {
     global: process.platform === "win32" ? ignoreCoverage : requireCoverage,
   },

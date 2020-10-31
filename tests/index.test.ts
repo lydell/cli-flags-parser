@@ -1,4 +1,4 @@
-import parse from "..";
+import parse from "../index";
 
 test("empty", () => {
   const args: Array<string> = [];
