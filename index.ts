@@ -33,7 +33,7 @@ type FlagValue =
   | { tag: "ViaNextArg"; value: string }
   | { tag: "NextArgMissing" };
 
-export type Callback<Arg, State, CustomError> = (
+type Callback<Arg, State, CustomError> = (
   state: State,
   arg: Arg
 ) =>
