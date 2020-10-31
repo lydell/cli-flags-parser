@@ -51,6 +51,16 @@ const helpRule: Rule = [
   }),
 ];
 
+const helpRuleShort: Rule = [
+  "-",
+  "h",
+  (state) => ({
+    tag: "Ok",
+    state: { ...state, help: true },
+    handleRemainingAsRest: true,
+  }),
+];
+
 const versionRule: Rule = [
   "--",
   "version",
@@ -129,6 +139,7 @@ const watchRule: Rule = [
 
 const allRules = [
   helpRule,
+  helpRuleShort,
   versionRule,
   compilerRule,
   reportRule,
@@ -241,7 +252,7 @@ function parseCommand(state: State): Result<string, Command> {
 }
 
 function flagRulesFromState(state: State): Array<Rule> {
-  const common = [helpRule, versionRule, compilerRule];
+  const common = [helpRule, helpRuleShort, versionRule, compilerRule];
 
   switch (state.command) {
     case "help":
@@ -357,6 +368,30 @@ function flagErrorToString(error: FlagErrorWrapper<string>): string {
 describe("elm-test", () => {
   test("--help", () => {
     expect(elmTest(["--help"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "help",
+      }
+    `);
+  });
+
+  test("-h", () => {
+    expect(elmTest(["-h"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "help",
+      }
+    `);
+  });
+
+  test("-help", () => {
+    expect(elmTest(["-help"])).toMatchInlineSnapshot(`
+      Object {
+        "tag": "help",
+      }
+    `);
+  });
+
+  test("help", () => {
+    expect(elmTest(["help"])).toMatchInlineSnapshot(`
       Object {
         "tag": "help",
       }

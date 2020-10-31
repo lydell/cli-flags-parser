@@ -255,7 +255,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
             tag: "FlagError",
             error: {
               tag: "UnknownFlag",
-              dash: "--",
+              dash: flagDash,
               name: flagName,
             },
           };
