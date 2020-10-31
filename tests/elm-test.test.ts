@@ -60,7 +60,7 @@ const versionRule: Rule = [
 const compilerRule: Rule = [
   "--",
   "compiler",
-  "=",
+  "a path to an Elm executable",
   (value: string, state: State) => ({
     tag: "Ok" as const,
     state: { ...state, compiler: value },
@@ -70,7 +70,7 @@ const compilerRule: Rule = [
 const reportRule: Rule = [
   "--",
   "report",
-  "=",
+  "a reporter",
   (value: string, state: State) => {
     const result = parseReport(value);
     switch (result.tag) {
@@ -88,7 +88,7 @@ const reportRule: Rule = [
 const fuzzRule: Rule = [
   "--",
   "fuzz",
-  "=",
+  "a number",
   (value: string, state: State) => {
     const result = parsePositiveInteger(value);
     switch (result.tag) {
@@ -106,7 +106,7 @@ const fuzzRule: Rule = [
 const seedRule: Rule = [
   "--",
   "seed",
-  "=",
+  "a number",
   (value: string, state: State) => {
     const result = parsePositiveInteger(value);
     switch (result.tag) {
@@ -344,9 +344,9 @@ function flagErrorToString(error: FlagErrorWrapper<string>): string {
         ? "Invalid flag in this context"
         : "Unknown flag";
     case "MissingFlagValue":
-      return "This flag requires a value";
+      return `This flag requires ${error.valueDescription}`;
     case "ValueFlagNotLastInGroup":
-      return "This flag requires a value and therefore must be last in the group";
+      return `This flag requires ${error.valueDescription} and therefore must be last in the group`;
     case "UnexpectedFlagValue":
       return `This flag takes no value but was given one: ${error.value}`;
     case "Custom":

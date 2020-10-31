@@ -60,7 +60,7 @@ test("value flag not last in group", () => {
       [
         "-",
         "b",
-        "=",
+        "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, b: state.b + Number(v) },
@@ -69,7 +69,7 @@ test("value flag not last in group", () => {
       [
         "-",
         "c",
-        "=",
+        "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, c: state.c + Number(v) },
@@ -78,7 +78,7 @@ test("value flag not last in group", () => {
       [
         "--",
         "abc",
-        "=",
+        "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, abc: state.abc + Number(v) },
@@ -95,6 +95,7 @@ test("value flag not last in group", () => {
         "dash": "-",
         "name": "b",
         "tag": "ValueFlagNotLastInGroup",
+        "valueDescription": "a number",
       },
       "tag": "FlagError",
     }
@@ -136,7 +137,7 @@ test("value flag IS last in group", () => {
       [
         "-",
         "c",
-        "=",
+        "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, c: state.c + Number(v) },
@@ -145,7 +146,7 @@ test("value flag IS last in group", () => {
       [
         "--",
         "abc",
-        "=",
+        "a number",
         (v: string, state: State) => ({
           tag: "Ok" as const,
           state: { ...state, abc: state.abc + Number(v) },

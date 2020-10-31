@@ -5,7 +5,7 @@ export type FlagRule<State, FlagError> =
   | [
       dash: Dash,
       name: string,
-      value: "=",
+      valueDescription: string,
       callback: ValueCallback<string, State, FlagError>
     ];
 
@@ -20,11 +20,13 @@ export type FlagErrorWrapper<FlagError> =
       tag: "MissingFlagValue";
       dash: Dash;
       name: string;
+      valueDescription: string;
     }
   | {
       tag: "ValueFlagNotLastInGroup";
       dash: "-";
       name: string;
+      valueDescription: string;
     }
   | {
       tag: "UnknownFlag";
@@ -35,6 +37,7 @@ export type FlagErrorWrapper<FlagError> =
       tag: "Custom";
       dash: Dash;
       name: string;
+      valueDescription: string | undefined;
       error: FlagError;
     };
 
@@ -98,6 +101,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
     const handleFlagCallbackResult = (
       dash: Dash,
       name: string,
+      valueDescription: string | undefined,
       result: CallbackResult<State, FlagError>
     ): ParseResult<State, FlagError, ArgError> | undefined => {
       switch (result.tag) {
@@ -114,6 +118,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
               tag: "Custom",
               dash,
               name,
+              valueDescription,
               error: result.error,
             },
           };
@@ -188,10 +193,11 @@ export default function parse<State, FlagError = never, ArgError = never>(
                 case "ViaNextArg":
                 case "NextArgMissing":
                 case "NotLastInGroup": {
-                  const callback = rule[2];
+                  const [, , callback] = rule;
                   const result = handleFlagCallbackResult(
                     dash,
                     name,
+                    undefined,
                     callback(state)
                   );
                   if (result !== undefined) {
@@ -200,7 +206,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
                 }
               }
             } else {
-              const callback = rule[3];
+              const [, , valueDescription, callback] = rule;
               switch (flagValue.tag) {
                 // @ts-expect-error: Fallthrough intended.
                 case "ViaNextArg":
@@ -209,6 +215,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
                   const result = handleFlagCallbackResult(
                     dash,
                     name,
+                    valueDescription,
                     callback(flagValue.value, state)
                   );
                   if (result !== undefined) {
@@ -223,6 +230,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
                       tag: "ValueFlagNotLastInGroup",
                       dash: "-",
                       name,
+                      valueDescription,
                     },
                   };
                 case "NextArgMissing":
@@ -232,6 +240,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
                       tag: "MissingFlagValue",
                       dash,
                       name,
+                      valueDescription,
                     },
                   };
               }
