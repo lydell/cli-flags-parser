@@ -1,8 +1,13 @@
 export type Dash = "-" | "--";
 
 export type FlagRule<State, FlagError> =
-  | [Dash, string, VoidCallback<State, FlagError>]
-  | [Dash, string, "=", ValueCallback<string, State, FlagError>];
+  | [dash: Dash, name: string, callback: VoidCallback<State, FlagError>]
+  | [
+      dash: Dash,
+      name: string,
+      value: "=",
+      callback: ValueCallback<string, State, FlagError>
+    ];
 
 export type FlagErrorWrapper<FlagError> =
   | {
@@ -150,7 +155,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
             : { tag: "NextArgMissing" }
           : { tag: "ViaEquals", value: maybeAfterEquals };
 
-      const items: Array<[string, FlagValue]> =
+      const items: Array<[name: string, flagValue: FlagValue]> =
         flagDash === "-"
           ? beforeEquals
               .split("")
