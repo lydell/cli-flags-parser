@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "author": "Simon Lydell",
   "license": "MIT",
-  "description": "Helper function for parsing CLI flags.",
+  "description": "Minimal, type safe and flexible CLI options parser.",
   "repository": "lydell/cli-options-parser",
   "type": "commonjs",
   "exports": "./index.js",
