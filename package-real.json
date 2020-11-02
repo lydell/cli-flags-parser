@@ -1,10 +1,10 @@
 {
-  "name": "cli-flags",
+  "name": "cli-options-parser",
   "version": "1.0.0",
   "author": "Simon Lydell",
   "license": "MIT",
   "description": "Helper function for parsing CLI flags.",
-  "repository": "lydell/cli-flags",
+  "repository": "lydell/cli-options-parser",
   "type": "commonjs",
   "exports": "./index.js",
   "keywords": ["cli", "flags", "arg", "argument", "arguments", "minimist", "parser"]

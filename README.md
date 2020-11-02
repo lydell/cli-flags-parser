@@ -1,4 +1,4 @@
-# elm-tooling CLI
+# cli-options-parser
 
 Helper function for parsing CLI flags.
 
@@ -6,15 +6,18 @@ Helper function for parsing CLI flags.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Installation](#installation)
+- [Usage](#usage)
 - [License](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Installation
 
-```
-npm install cli-flags
-```
+Not published on npm (yet?).
+
+## Usage
+
+TBD
 
 ## License
 
