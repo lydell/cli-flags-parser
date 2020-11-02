@@ -254,9 +254,12 @@ function flagRulesFromState(state: State): Array<Rule> {
   }
 }
 
-function elmTest(argv: Array<string>): Command | string {
+function elmTest(
+  argv: Array<string>,
+  { initialCommand = "test" }: { initialCommand?: IntermediateCommand } = {}
+): Command | string {
   const initialState: State = {
-    command: "test",
+    command: initialCommand,
     args: [],
     compiler: undefined,
     report: "console",
@@ -271,7 +274,7 @@ function elmTest(argv: Array<string>): Command | string {
     initialState,
     flagRulesFromState,
     onArg: (arg, state) => {
-      if (state.command === "test" && state.args.length === 0) {
+      if (state.command === initialCommand && state.args.length === 0) {
         switch (arg) {
           case "help":
             return {
@@ -311,6 +314,14 @@ function elmTest(argv: Array<string>): Command | string {
 
   switch (result.tag) {
     case "Ok": {
+      if (
+        initialCommand === "test" &&
+        result.state.command !== initialCommand
+      ) {
+        // Re-parse with the found command as the starting point to disallow
+        // incompatible flags given before the command itself.
+        return elmTest(argv, { initialCommand: result.state.command });
+      }
       const result2 = parseCommand(result.state);
       switch (result2.tag) {
         case "Ok":
@@ -402,8 +413,14 @@ describe("elm-test", () => {
     `);
   });
 
-  test("--seed with make", () => {
+  test("make with --seed", () => {
     expect(elmTest(["make", "--seed=123"])).toMatchInlineSnapshot(
+      `"--seed: Invalid flag in this context"`
+    );
+  });
+
+  test("--seed with make", () => {
+    expect(elmTest(["--seed=123", "make"])).toMatchInlineSnapshot(
       `"--seed: Invalid flag in this context"`
     );
   });
@@ -418,6 +435,20 @@ describe("elm-test", () => {
     expect(elmTest(["--seed", "0xaf"])).toMatchInlineSnapshot(
       `"--seed: Expected one or more digits, but got: 0xaf"`
     );
+  });
+
+  test("valid --seed", () => {
+    expect(elmTest(["--seed", "1234"])).toMatchInlineSnapshot(`
+      Object {
+        "compiler": undefined,
+        "fuzz": 100,
+        "report": "console",
+        "seed": 1234,
+        "tag": "test",
+        "testFileGlobs": Array [],
+        "watch": false,
+      }
+    `);
   });
 
   test("--watch", () => {
