@@ -13,6 +13,8 @@ cli-options-parser does not:
 - Generate help text.
 - Help you write as little code as possible.
 
+While many other CLI options parsers try to do everything for you through configuration, cli-options-parser’s goal is to feel more like a good old `for` loop over `process.argv`.
+
 ## Contents
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
