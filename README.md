@@ -48,6 +48,9 @@ TBD
 
 ## Not supported
 
+- `-d/`: Flag values right next to short flags. This is a complicated and confusing feature. Use `-d /` or `-d=/` instead.
+- `+f /f`: Other types of flags. If you need that, cli-options-parser might not be the library for you.
+
 ## License
 
 [MIT](LICENSE).
