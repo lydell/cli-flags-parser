@@ -4,8 +4,9 @@ cli-options-parser is:
 
 - Minimal. No dependencies. Tiny API.
 - Flexible. Complete control to you.
-- Type safe.
-- Functional.
+- Strict. Report great errors.
+- Type safe. Great TypeScript experience.
+- Functional. Pure functions.
 
 cli-options-parser does not:
 
@@ -21,6 +22,7 @@ cli-options-parser does not:
 - [Example](#example)
 - [Supported](#supported)
 - [Not supported](#not-supported)
+- [API](#api)
 - [License](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -32,6 +34,8 @@ Not published on npm (yet?).
 ## Example
 
 TBD
+
+- [Comprehensive example](https://github.com/lydell/cli-options-parser/blob/main/tests/elm-test.test.ts)
 
 ## Supported
 
@@ -50,6 +54,10 @@ TBD
 
 - `-d/`: Flag values right next to short flags. This is a complicated and confusing feature. Use `-d /` or `-d=/` instead.
 - `+f /f`: Other types of flags. If you need that, cli-options-parser might not be the library for you.
+
+## API
+
+TBD
 
 ## License
 
