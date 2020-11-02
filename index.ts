@@ -70,10 +70,15 @@ const optionRegex = /^(--?[^-=][^=]*)(?:=([^]*))?$/;
 
 export default function parse<State, FlagError = never, ArgError = never>(
   argv: Array<string>,
-  options: Options<State, FlagError, ArgError>
+  {
+    initialState,
+    flagRulesFromState,
+    onArg,
+    onRest,
+  }: Options<State, FlagError, ArgError>
 ): ParseResult<State, FlagError, ArgError> {
-  let state = options.initialState;
-  let rules = options.flagRulesFromState(state);
+  let state = initialState;
+  let rules = flagRulesFromState(state);
 
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
@@ -83,7 +88,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
       FlagError,
       ArgError
     > => {
-      const result = options.onRest(argv.slice(index + 1), state);
+      const result = onRest(argv.slice(index + 1), state);
       switch (result.tag) {
         case "Ok":
           return { tag: "Ok", state: result.state };
@@ -100,7 +105,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
       switch (result.tag) {
         case "Ok":
           ({ state } = result);
-          rules = options.flagRulesFromState(state);
+          rules = flagRulesFromState(state);
           return result.handleRemainingAsRest === true
             ? handleRemainingAsRest()
             : undefined;
@@ -123,7 +128,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
       switch (result.tag) {
         case "Ok":
           ({ state } = result);
-          rules = options.flagRulesFromState(state);
+          rules = flagRulesFromState(state);
           return result.handleRemainingAsRest === true
             ? handleRemainingAsRest()
             : undefined;
@@ -250,7 +255,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
         }
       }
     } else {
-      const result = handleCallbackResult(options.onArg(arg, state));
+      const result = handleCallbackResult(onArg(arg, state));
       if (result !== undefined) {
         return result;
       }
