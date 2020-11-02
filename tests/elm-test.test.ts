@@ -123,7 +123,7 @@ const watchRule: Rule = [
   (state) => ({ tag: "Ok", state: { ...state, watch: true } }),
 ];
 
-const allRules = [
+const allRules: Array<Rule> = [
   helpRule,
   versionRule,
   compilerRule,
