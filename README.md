@@ -3,7 +3,7 @@
 cli-options-parser is:
 
 - Minimal. No dependencies. Tiny API.
-- Flexible complete control to you.
+- Flexible. Complete control to you.
 - Type safe.
 - Functional.
 
@@ -11,6 +11,8 @@ cli-options-parser does not:
 
 - Generate help text.
 - Help you write as little code as possible.
+
+## Contents
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->

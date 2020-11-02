@@ -20,7 +20,7 @@ const FILES_TO_COPY: Array<FileToCopy> = [
   { src: "package-real.json", dest: "package.json" },
   {
     src: "README.md",
-    transformDest: (content) => content.replace(/<!--[^]*$/, READ_MORE),
+    transformDest: (content) => content.replace(/## Contents[^]*$/, READ_MORE),
   },
 ];
 
