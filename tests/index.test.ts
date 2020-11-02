@@ -33,6 +33,133 @@ test("empty", () => {
   `);
 });
 
+test("short and long options, with and without values", () => {
+  type State = {
+    h: number;
+    help: number;
+    longH: number;
+    d: Array<string>;
+    "dashed-NAME": Array<string>;
+    "9": number;
+    "#": number;
+    "?": number;
+    "Iñtërnâtiônàlizætiøn 💩": number;
+  };
+
+  const result = parse<State>(
+    [
+      "-h",
+      "--help",
+      "--h",
+      "-d",
+      "-h",
+      "--dashed-NAME",
+      "--help",
+      "-d=o=o",
+      "--dashed-NAME=[ weird, thing ]",
+      "-9#?",
+      "--nine",
+      "--Iñtërnâtiônàlizætiøn 💩",
+    ],
+    {
+      initialState: {
+        h: 0,
+        help: 0,
+        longH: 0,
+        d: [],
+        "dashed-NAME": [],
+        "9": 0,
+        "#": 0,
+        "?": 0,
+        "Iñtërnâtiônàlizætiøn 💩": 0,
+      },
+      flagRulesFromState: () => [
+        [
+          ["-h"],
+          (state) => ({ tag: "Ok", state: { ...state, h: state.h + 1 } }),
+        ],
+        [
+          ["--help"],
+          (state) => ({ tag: "Ok", state: { ...state, help: state.help + 1 } }),
+        ],
+        [
+          ["--h"],
+          (state) => ({
+            tag: "Ok",
+            state: { ...state, longH: state.longH + 1 },
+          }),
+        ],
+        [
+          ["-d"],
+          "a value",
+          (value, state) => ({
+            tag: "Ok",
+            state: { ...state, d: state.d.concat(value) },
+          }),
+        ],
+        [
+          ["--dashed-NAME"],
+          "a value",
+          (value, state) => ({
+            tag: "Ok",
+            state: {
+              ...state,
+              "dashed-NAME": state["dashed-NAME"].concat(value),
+            },
+          }),
+        ],
+        [
+          ["-9", "--nine"],
+          (state) => ({ tag: "Ok", state: { ...state, 9: state[9] + 1 } }),
+        ],
+        [
+          ["-#"],
+          (state) => ({ tag: "Ok", state: { ...state, "#": state["#"] + 1 } }),
+        ],
+        [
+          ["-?"],
+          (state) => ({ tag: "Ok", state: { ...state, "?": state["?"] + 1 } }),
+        ],
+        [
+          ["--Iñtërnâtiônàlizætiøn 💩"],
+          (state) => ({
+            tag: "Ok",
+            state: {
+              ...state,
+              "Iñtërnâtiônàlizætiøn 💩": state["Iñtërnâtiônàlizætiøn 💩"] + 1,
+            },
+          }),
+        ],
+      ],
+      onArg: fail,
+      onRest: fail,
+    }
+  );
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "state": Object {
+        "#": 1,
+        "9": 2,
+        "?": 1,
+        "Iñtërnâtiônàlizætiøn 💩": 1,
+        "d": Array [
+          "-h",
+          "o=o",
+        ],
+        "dashed-NAME": Array [
+          "--help",
+          "[ weird, thing ]",
+        ],
+        "h": 1,
+        "help": 1,
+        "longH": 1,
+      },
+      "tag": "Ok",
+    }
+  `);
+});
+
 test("value flag not last in group", () => {
   type State = {
     a: number;
@@ -256,6 +383,152 @@ test("a single dash should be an arg", () => {
     Object {
       "state": "-",
       "tag": "Ok",
+    }
+  `);
+});
+
+test("-- to stop flags parsing", () => {
+  type State = {
+    a: number;
+    args: Array<string>;
+    rest: Array<string>;
+  };
+
+  const result = parse<State>(["-a", "b", "--", "-a", "b"], {
+    initialState: {
+      a: 0,
+      args: [],
+      rest: [],
+    },
+    flagRulesFromState: () => [
+      [["-a"], (state) => ({ tag: "Ok", state: { ...state, a: state.a + 1 } })],
+    ],
+    onArg: (arg, state) => ({
+      tag: "Ok",
+      state: { ...state, args: state.args.concat(arg) },
+    }),
+    onRest: (rest, state) => ({
+      tag: "Ok",
+      state: { ...state, rest: state.rest.concat(rest) },
+    }),
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "state": Object {
+        "a": 1,
+        "args": Array [
+          "b",
+        ],
+        "rest": Array [
+          "-a",
+          "b",
+        ],
+      },
+      "tag": "Ok",
+    }
+  `);
+});
+
+test("-- can be consumed without stopping flags parsing", () => {
+  type State = {
+    a: Array<string>;
+    args: Array<string>;
+    rest: Array<string>;
+  };
+
+  const result = parse<State>(["b", "-a", "--", "-a", "b"], {
+    initialState: {
+      a: [],
+      args: [],
+      rest: [],
+    },
+    flagRulesFromState: () => [
+      [
+        ["-a"],
+        "a value",
+        (value, state) => ({
+          tag: "Ok",
+          state: { ...state, a: state.a.concat(value) },
+        }),
+      ],
+    ],
+    onArg: (arg, state) => ({
+      tag: "Ok",
+      state: { ...state, args: state.args.concat(arg) },
+    }),
+    onRest: (rest, state) => ({
+      tag: "Ok",
+      state: { ...state, rest: state.rest.concat(rest) },
+    }),
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "state": Object {
+        "a": Array [
+          "--",
+          "b",
+        ],
+        "args": Array [
+          "b",
+        ],
+        "rest": Array [],
+      },
+      "tag": "Ok",
+    }
+  `);
+});
+
+test("non-flags", () => {
+  type State = {
+    args: Array<string>;
+  };
+
+  const result = parse<State>(["---", "--=", "-="], {
+    initialState: {
+      args: [],
+    },
+    flagRulesFromState: () => [],
+    onArg: (arg, state) => ({
+      tag: "Ok",
+      state: { ...state, args: state.args.concat(arg) },
+    }),
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "state": Object {
+        "args": Array [
+          "---",
+          "--=",
+          "-=",
+        ],
+      },
+      "tag": "Ok",
+    }
+  `);
+});
+
+test("flags that never match anything", () => {
+  const result = parse(["-help", "help"], {
+    initialState: null,
+    flagRulesFromState: () => [
+      [["-help"], fail],
+      [["help"], fail],
+    ],
+    onArg: fail,
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": Object {
+        "name": "-h",
+        "tag": "UnknownFlag",
+      },
+      "tag": "FlagError",
     }
   `);
 });
