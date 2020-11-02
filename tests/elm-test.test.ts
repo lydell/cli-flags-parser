@@ -1,3 +1,6 @@
+// This is an implementation of a real-world CLI for sanity checking.
+// https://github.com/rtfeldman/node-test-runner/tree/ec4ec7312d2a415d9c22acb620f22aaa438192ed
+
 import parse, { FlagErrorWrapper, FlagRule } from "../index";
 
 type IntermediateCommand = "help" | "init" | "install" | "make" | "test";
