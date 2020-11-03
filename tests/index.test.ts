@@ -334,8 +334,8 @@ test("handle remaining as rest", () => {
 });
 
 test("arg error", () => {
-  const result = parse(["arg"], {
-    initialState: {},
+  const result = parse<null, never, string>(["arg"], {
+    initialState: null,
     flagRulesFromState: () => [],
     onArg: () => ({
       tag: "Error",
@@ -366,6 +366,25 @@ test("rest error", () => {
   expect(result).toMatchInlineSnapshot(`
     Object {
       "error": "Rest error",
+      "tag": "ArgError",
+    }
+  `);
+});
+
+test("handling remaining as rest can also give rest error", () => {
+  const result = parse<null, never, number>(["arg"], {
+    initialState: null,
+    flagRulesFromState: () => [],
+    onArg: (_, state) => ({ tag: "Ok", state, handleRemainingAsRest: true }),
+    onRest: () => ({
+      tag: "Error",
+      error: 5,
+    }),
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": 5,
       "tag": "ArgError",
     }
   `);
@@ -480,6 +499,48 @@ test("-- can be consumed without stopping flags parsing", () => {
   `);
 });
 
+test("-- can give empty array", () => {
+  const result = parse<undefined | Array<string>>(["--"], {
+    initialState: undefined,
+    flagRulesFromState: () => [],
+    onArg: fail,
+    onRest: (rest) => ({
+      tag: "Ok",
+      state: rest,
+    }),
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "state": Array [],
+      "tag": "Ok",
+    }
+  `);
+});
+
+test("handling remaining as rest can give empty array", () => {
+  const result = parse<undefined | Array<string>>(["arg"], {
+    initialState: undefined,
+    flagRulesFromState: () => [],
+    onArg: (_, state) => ({
+      tag: "Ok",
+      state,
+      handleRemainingAsRest: true,
+    }),
+    onRest: (rest) => ({
+      tag: "Ok",
+      state: rest,
+    }),
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "state": Array [],
+      "tag": "Ok",
+    }
+  `);
+});
+
 test("non-flags", () => {
   type State = {
     args: Array<string>;
@@ -527,6 +588,129 @@ test("flags that never match anything", () => {
       "error": Object {
         "name": "-h",
         "tag": "UnknownFlag",
+      },
+      "tag": "FlagError",
+    }
+  `);
+});
+
+test("unexpected flag value for short flag", () => {
+  const result = parse(["-h=value"], {
+    initialState: 0,
+    flagRulesFromState: () => [
+      [["-h"], (state) => ({ tag: "Ok", state: state + 1 })],
+    ],
+    onArg: fail,
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": Object {
+        "name": "-h",
+        "tag": "UnexpectedFlagValue",
+        "value": "value",
+      },
+      "tag": "FlagError",
+    }
+  `);
+});
+
+test("unexpected flag value for long flag", () => {
+  const result = parse(["--help=value"], {
+    initialState: 0,
+    flagRulesFromState: () => [
+      [["--help"], (state) => ({ tag: "Ok", state: state + 1 })],
+    ],
+    onArg: fail,
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": Object {
+        "name": "--help",
+        "tag": "UnexpectedFlagValue",
+        "value": "value",
+      },
+      "tag": "FlagError",
+    }
+  `);
+});
+
+test("missing flag value", () => {
+  const result = parse(["--file"], {
+    initialState: "",
+    flagRulesFromState: () => [
+      [
+        ["--file"],
+        "a path",
+        (path: string) => ({ tag: "Ok" as const, state: path }),
+      ],
+    ],
+    onArg: fail,
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": Object {
+        "name": "--file",
+        "tag": "MissingFlagValue",
+        "valueDescription": "a path",
+      },
+      "tag": "FlagError",
+    }
+  `);
+});
+
+test("custom flag error for boolean flag", () => {
+  const result = parse(["--help"], {
+    initialState: "",
+    flagRulesFromState: () => [
+      [["--help"], () => ({ tag: "Error", error: 1337 })],
+    ],
+    onArg: fail,
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": Object {
+        "error": 1337,
+        "name": "--help",
+        "tag": "Custom",
+        "valueDescription": undefined,
+      },
+      "tag": "FlagError",
+    }
+  `);
+});
+
+test("custom flag error for value flag", () => {
+  type FlagError = { tag: "PathError" };
+  const result = parse<string, FlagError>(["--file=/path"], {
+    initialState: "",
+    flagRulesFromState: () => [
+      [
+        ["--file"],
+        "a path",
+        () => ({ tag: "Error" as const, error: { tag: "PathError" as const } }),
+      ],
+    ],
+    onArg: fail,
+    onRest: fail,
+  });
+
+  expect(result).toMatchInlineSnapshot(`
+    Object {
+      "error": Object {
+        "error": Object {
+          "tag": "PathError",
+        },
+        "name": "--file",
+        "tag": "Custom",
+        "valueDescription": "a path",
       },
       "tag": "FlagError",
     }
