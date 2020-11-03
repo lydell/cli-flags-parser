@@ -6,7 +6,7 @@ const DIR = path.dirname(__dirname);
 const BUILD = path.join(DIR, "build");
 
 const READ_MORE =
-  "**[➡️ Full readme](https://github.com/lydell/cli-options-parser)**";
+  "**[➡️ Full readme](https://github.com/lydell/cli-flags-parser)**";
 
 type FileToCopy = {
   src: string;

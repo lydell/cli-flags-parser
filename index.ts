@@ -66,7 +66,7 @@ export type ParseResult<State, FlagError, ArgError> =
   | { tag: "FlagError"; error: FlagErrorWrapper<FlagError> }
   | { tag: "ArgError"; error: ArgError };
 
-const optionRegex = /^(--?[^-=][^=]*)(?:=([^]*))?$/;
+const flagRegex = /^(--?[^-=][^=]*)(?:=([^]*))?$/;
 
 export default function parse<State, FlagError = never, ArgError = never>(
   argv: Array<string>,
@@ -144,7 +144,7 @@ export default function parse<State, FlagError = never, ArgError = never>(
       return handleRemainingAsRest();
     }
 
-    const match = optionRegex.exec(arg);
+    const match = flagRegex.exec(arg);
     if (match !== null) {
       const beforeEquals: string = match[1];
       const maybeAfterEquals: string | undefined = match[2];

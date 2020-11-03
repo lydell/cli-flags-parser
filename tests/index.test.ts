@@ -33,7 +33,7 @@ test("empty", () => {
   `);
 });
 
-test("short and long options, with and without values", () => {
+test("short and long flags, with and without values", () => {
   type State = {
     h: number;
     help: number;

@@ -1,6 +1,6 @@
-# cli-options-parser
+# cli-flags-parser
 
-cli-options-parser is:
+cli-flags-parser is:
 
 - Minimal. No dependencies. Tiny API.
 - Flexible. Complete control to you.
@@ -8,12 +8,12 @@ cli-options-parser is:
 - Type safe. Great TypeScript experience.
 - Functional. Pure functions.
 
-cli-options-parser does not:
+cli-flags-parser does not:
 
 - Generate help text.
 - Help you write as little code as possible.
 
-While many other CLI options parsers try to do everything for you through configuration, cli-options-parser’s goal is to feel more like a good old `for` loop over `process.argv`.
+While many other CLI libraries try to do everything for you through configuration, cli-flags-parser’s goal is to feel more like a good old `for` loop over `process.argv`.
 
 ## Contents
 
@@ -37,7 +37,7 @@ Not published on npm (yet?).
 
 TBD
 
-- [Comprehensive example](https://github.com/lydell/cli-options-parser/blob/main/tests/elm-test.test.ts)
+- [Comprehensive example](https://github.com/lydell/cli-flags-parser/blob/main/tests/elm-test.test.ts)
 
 ## Supported
 
@@ -50,12 +50,12 @@ TBD
 - `-abc`: Groups of short flags.
 - `-abc=value`: Groups of short flags, the last one with a value.
 - `--` to stop parsing flags.
-- `--delimiter -- --next-option`: `--` can still be used as a value without stopping flags parsing.
+- `--delimiter -- --next-flag`: `--` can still be used as a value without stopping flags parsing.
 
 ## Not supported
 
 - `-d/`: Flag values right next to short flags. This is a complicated and confusing feature. Use `-d /` or `-d=/` instead.
-- `+f /f`: Other types of flags. If you need that, cli-options-parser might not be the library for you.
+- `+f /f`: Other types of flags. If you need that, cli-flags-parser might not be the library for you.
 
 ## API
 
