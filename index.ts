@@ -156,10 +156,9 @@ export default function parse<State, FlagError = never, ArgError = never>(
             : { tag: "NextArgMissing" }
           : { tag: "ViaEquals", value: maybeAfterEquals };
 
-      const items: Array<[
-        name: string,
-        flagValue: FlagValue
-      ]> = beforeEquals.startsWith("--")
+      const items: Array<
+        [name: string, flagValue: FlagValue]
+      > = beforeEquals.startsWith("--")
         ? [[beforeEquals, afterEquals]]
         : beforeEquals
             .slice(1)
